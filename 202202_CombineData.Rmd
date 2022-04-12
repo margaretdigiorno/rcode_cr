@@ -2,7 +2,7 @@
 title: "Combine Data"
 author: "Margaret DiGiorno"
 date: "February 15, 2022"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
