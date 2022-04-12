@@ -10,7 +10,6 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir = 'C:/Users/margaret')
 ```
 
-#this is a test change
 ## Make a satellite basemap to plot the data over
 
 I created a bbox for the entire site area using the draw_ext() function and then used st_write() to save it as a shapefile that can be loaded. Will use the same method to create smaller zoomed in map extents.
