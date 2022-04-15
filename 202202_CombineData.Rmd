@@ -468,6 +468,8 @@ for (i in 3:5){
 ```
 Now make a plot sheet for each river segment/side/month:
 ```{r}
+library(gridExtra)
+setwd("~/columbiariver/field-data/04-graphics-outputs/")
 horiz <- rbind(c(1,1,1,1,1),
              c(1,1,1,1,1),
              c(2,2,2,2,2), 
