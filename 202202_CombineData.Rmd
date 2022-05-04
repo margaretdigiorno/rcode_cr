@@ -345,6 +345,33 @@ for (i in 1:5){
 
 wqloc <- list(fl_maps, fr_maps, jl_maps, jr_maps)
 ```
+```{r}
+fl_ng <- st_drop_geometry(febleft_3857)
+fr_ng <- st_drop_geometry(febright_3857)
+jl_ng <- st_drop_geometry(julleft_3857)
+jr_ng <- st_drop_geometry(julright_3857)
+
+fl_ng[,47:66][fl_ng[,67:86] > fl_ng[,87]] <- NA
+fl_ng[,67:86][fl_ng[,67:86] > fl_ng[,87]] <- NA
+range(fl_ng[,47:66], na.rm = TRUE)
+febleft_3857 <- st_set_geometry(fl_ng, st_geometry(febleft_3857))
+
+fr_ng[,47:66][fr_ng[,67:86] > fr_ng[,87]] <- NA
+fr_ng[,67:86][fr_ng[,67:86] > fr_ng[,87]] <- NA
+range(fr_ng[,47:66], na.rm = TRUE)
+febright_3857 <- st_set_geometry(fr_ng, st_geometry(febright_3857))
+
+jl_ng[,47:66][jl_ng[,67:86] > jl_ng[,87]] <- NA
+jl_ng[,67:86][jl_ng[,67:86] > jl_ng[,87]] <- NA
+range(jl_ng[,47:66], na.rm = TRUE)
+julleft_3857 <- st_set_geometry(jl_ng, st_geometry(julleft_3857))
+
+jr_ng[,47:66][jr_ng[,67:86] > jr_ng[,87]] <- NA
+jr_ng[,67:86][jr_ng[,67:86] > jr_ng[,87]] <- NA
+range(jr_ng[,47:66], na.rm = TRUE)
+julright_3857 <- st_set_geometry(jr_ng, st_geometry(julright_3857))
+```
+
 Next make a list which contains all of the geophysical plots using geom_rect
 ```{r}
 res_h_L <- function(prof, bbox){
@@ -354,13 +381,6 @@ res_h_L <- function(prof, bbox){
   ggplot() + geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = 0, ymax = DEP_BOT_1_L, fill = RHO_I_1_L))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_1_L, ymax = DEP_BOT_2_L, fill = RHO_I_2_L))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_2_L, ymax = DEP_BOT_3_L, fill = RHO_I_3_L)) + geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_3_L, ymax = DEP_BOT_4_L, fill = RHO_I_4_L))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_4_L, ymax = DEP_BOT_5_L, fill = RHO_I_5_L))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_5_L, ymax = DEP_BOT_6_L, fill = RHO_I_6_L))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_6_L, ymax = DEP_BOT_7_L, fill = RHO_I_7_L)) + geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_7_L, ymax = DEP_BOT_8_L, fill = RHO_I_8_L)) + geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_8_L, ymax = DEP_BOT_9_L, fill = RHO_I_9_L))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_9_L, ymax = DEP_BOT_10_L, fill = RHO_I_10_L))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_10_L, ymax = DEP_BOT_11_L, fill = RHO_I_11_L))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_11_L, ymax = DEP_BOT_12_L, fill = RHO_I_12_L))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_12_L, ymax = DEP_BOT_13_L, fill = RHO_I_13_L))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_13_L, ymax = DEP_BOT_14_L, fill = RHO_I_14_L))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_14_L, ymax = DEP_BOT_15_L, fill = RHO_I_15_L))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_15_L, ymax = DEP_BOT_16_L, fill = RHO_I_16_L))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_16_L, ymax = DEP_BOT_17_L, fill = RHO_I_17_L))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_17_L, ymax = DEP_BOT_18_L, fill = RHO_I_18_L))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_18_L, ymax = DEP_BOT_19_L, fill = RHO_I_19_L))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_19_L, ymax = DEP_BOT_20_L, fill = RHO_I_20_L))+scale_y_reverse()+scale_fill_viridis_c('Resistivity (ohm-m)', option = 'turbo', limits = c(0,500))+labs(y="Depth (m)", x = "Profile Distance (m)")
 }
 
-res_v_L <- function(prof, bbox){
-  temp <- st_crop(prof, bbox)
-  temp <- filter(temp, distance_from_point_m_L < 500)
-  temp$xmin <- temp$profsum - temp$dist
-  ggplot() + geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =0, xmax =DEP_BOT_1_L, fill = RHO_I_1_L))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_1_L, xmax =DEP_BOT_2_L, fill = RHO_I_2_L))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_2_L, xmax =DEP_BOT_3_L, fill = RHO_I_3_L)) + geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_3_L, xmax =DEP_BOT_4_L, fill = RHO_I_4_L))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_4_L, xmax =DEP_BOT_5_L, fill = RHO_I_5_L))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_5_L, xmax =DEP_BOT_6_L, fill = RHO_I_6_L))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_6_L, xmax =DEP_BOT_7_L, fill = RHO_I_7_L)) + geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_7_L, xmax =DEP_BOT_8_L, fill = RHO_I_8_L)) + geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_8_L, xmax =DEP_BOT_9_L, fill = RHO_I_9_L))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_9_L, xmax =DEP_BOT_10_L, fill = RHO_I_10_L))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_10_L, xmax =DEP_BOT_11_L, fill = RHO_I_11_L))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_11_L, xmax =DEP_BOT_12_L, fill = RHO_I_12_L))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_12_L, xmax =DEP_BOT_13_L, fill = RHO_I_13_L))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_13_L, xmax =DEP_BOT_14_L, fill = RHO_I_14_L))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_14_L, xmax =DEP_BOT_15_L, fill = RHO_I_15_L))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_15_L, xmax =DEP_BOT_16_L, fill = RHO_I_16_L))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_16_L, xmax =DEP_BOT_17_L, fill = RHO_I_17_L))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_17_L, xmax =DEP_BOT_18_L, fill = RHO_I_18_L))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_18_L, xmax =DEP_BOT_19_L, fill = RHO_I_19_L))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_19_L, xmax =DEP_BOT_20_L, fill = RHO_I_20_L))+scale_y_reverse()+scale_fill_viridis_c('Resistivity (ohm-m)', option = 'turbo', limits = c(0,500))+labs(x="Depth (m)", y = "Profile Distance (m)")
-}
-
 res_h_R <- function(prof, bbox){
   temp <- st_crop(prof, bbox)
   temp <- filter(temp, distance_from_point_m_R < 500)
@@ -368,12 +388,7 @@ res_h_R <- function(prof, bbox){
   ggplot() + geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = 0, ymax = DEP_BOT_1_R, fill = RHO_I_1_R))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_1_R, ymax = DEP_BOT_2_R, fill = RHO_I_2_R))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_2_R, ymax = DEP_BOT_3_R, fill = RHO_I_3_R)) + geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_3_R, ymax = DEP_BOT_4_R, fill = RHO_I_4_R))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_4_R, ymax = DEP_BOT_5_R, fill = RHO_I_5_R))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_5_R, ymax = DEP_BOT_6_R, fill = RHO_I_6_R))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_6_R, ymax = DEP_BOT_7_R, fill = RHO_I_7_R)) + geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_7_R, ymax = DEP_BOT_8_R, fill = RHO_I_8_R)) + geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_8_R, ymax = DEP_BOT_9_R, fill = RHO_I_9_R))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_9_R, ymax = DEP_BOT_10_R, fill = RHO_I_10_R))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_10_R, ymax = DEP_BOT_11_R, fill = RHO_I_11_R))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_11_R, ymax = DEP_BOT_12_R, fill = RHO_I_12_R))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_12_R, ymax = DEP_BOT_13_R, fill = RHO_I_13_R))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_13_R, ymax = DEP_BOT_14_R, fill = RHO_I_14_R))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_14_R, ymax = DEP_BOT_15_R, fill = RHO_I_15_R))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_15_R, ymax = DEP_BOT_16_R, fill = RHO_I_16_R))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_16_R, ymax = DEP_BOT_17_R, fill = RHO_I_17_R))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_17_R, ymax = DEP_BOT_18_R, fill = RHO_I_18_R))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_18_R, ymax = DEP_BOT_19_R, fill = RHO_I_19_R))+ geom_rect(data = temp, mapping = aes(xmin = xmin, xmax = profsum, ymin = DEP_BOT_19_R, ymax = DEP_BOT_20_R, fill = RHO_I_20_R))+scale_y_reverse()+scale_fill_viridis_c('Resistivity (ohm-m)', option = 'turbo', limits = c(0,500))+labs(y="Depth (m)", x = "Profile Distance (m)")
 }
 
-res_v_R <- function(prof, bbox){
-  temp <- st_crop(prof, bbox)
-  temp <- filter(temp, distance_from_point_m_R < 500)
-  temp$xmin <- temp$profsum - temp$dist
-  ggplot() + geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =0, xmax =DEP_BOT_1_R, fill = RHO_I_1_R))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_1_R, xmax =DEP_BOT_2_R, fill = RHO_I_2_R))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_2_R, xmax =DEP_BOT_3_R, fill = RHO_I_3_R)) + geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_3_R, xmax =DEP_BOT_4_R, fill = RHO_I_4_R))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_4_R, xmax =DEP_BOT_5_R, fill = RHO_I_5_R))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_5_R, xmax =DEP_BOT_6_R, fill = RHO_I_6_R))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_6_R, xmax =DEP_BOT_7_R, fill = RHO_I_7_R)) + geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_7_R, xmax =DEP_BOT_8_R, fill = RHO_I_8_R)) + geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_8_R, xmax =DEP_BOT_9_R, fill = RHO_I_9_R))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_9_R, xmax =DEP_BOT_10_R, fill = RHO_I_10_R))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_10_R, xmax =DEP_BOT_11_R, fill = RHO_I_11_R))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_11_R, xmax =DEP_BOT_12_R, fill = RHO_I_12_R))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_12_R, xmax =DEP_BOT_13_R, fill = RHO_I_13_R))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_13_R, xmax =DEP_BOT_14_R, fill = RHO_I_14_R))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_14_R, xmax =DEP_BOT_15_R, fill = RHO_I_15_R))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_15_R, xmax =DEP_BOT_16_R, fill = RHO_I_16_R))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_16_R, xmax =DEP_BOT_17_R, fill = RHO_I_17_R))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_17_R, xmax =DEP_BOT_18_R, fill = RHO_I_18_R))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_18_R, xmax =DEP_BOT_19_R, fill = RHO_I_19_R))+ geom_rect(data = temp, mapping = aes(ymin = xmin, ymax = profsum, xmin =DEP_BOT_19_R, xmax =DEP_BOT_20_R, fill = RHO_I_20_R))+scale_y_reverse()+scale_fill_viridis_c('Resistivity (ohm-m)', option = 'turbo', limits = c(0,500))+labs(x="Depth (m)", y = "Profile Distance (m)")
-}
+jr_res <- lapply(bbox, res_h_R, prof = julright_3857)
 fl_res <- list(lapply(bbox[1:2], res_h_L, prof = febleft_3857), lapply(bbox[3:5], res_v_L, prof = febleft_3857))
 fl_res <- unlist(fl_res, recursive = FALSE)
 fr_res <- list(lapply(bbox[1:2], res_h_R, prof = febright_3857), lapply(bbox[3:5], res_v_R, prof = febright_3857))
@@ -401,8 +416,8 @@ feb_temp_L <- lapply(bbox, feb_temp, prof = febleft_3857)
 feb_temp_R <- lapply(bbox, feb_temp, prof = febright_3857)
 
 for (i in 3:5){
-  feb_temp_L[[i]] <- feb_temp_L[[i]] + coord_flip()+scale_x_reverse()
-  feb_temp_R[[i]] <- feb_temp_R[[i]] + coord_flip()+scale_x_reverse()
+  feb_temp_L[[i]] <- feb_temp_L[[i]] +scale_x_reverse()
+  feb_temp_R[[i]] <- feb_temp_R[[i]]+scale_x_reverse()
 }
 
 feb_ec <- function(bbox, prof){
@@ -421,8 +436,8 @@ feb_ec_L <- lapply(bbox, feb_ec, prof = febleft_3857)
 feb_ec_R <- lapply(bbox, feb_ec, prof = febright_3857)
 
 for (i in 3:5){
-  feb_ec_L[[i]] <- feb_ec_L[[i]] + coord_flip()+scale_x_reverse()
-  feb_ec_R[[i]] <- feb_ec_R[[i]] + coord_flip()+scale_x_reverse()
+  feb_ec_L[[i]] <- feb_ec_L[[i]] +scale_x_reverse()
+  feb_ec_R[[i]] <- feb_ec_R[[i]] +scale_x_reverse()
 }
 ```
 Then make the same batches of plots for July
@@ -441,40 +456,14 @@ tempmap + scale_color_manual(values = c("Surface Background" = "grey", "Deep Bac
 jul_temp_L <- lapply(bbox, jul_temp, prof = julleft_3857)
 jul_temp_R <- lapply(bbox, jul_temp, prof = julright_3857)
 
-for (i in 3:5){
-  jul_temp_L[[i]] <- jul_temp_L[[i]] + coord_flip()+scale_x_reverse()
-  jul_temp_R[[i]] <- jul_temp_R[[i]] + coord_flip()+scale_x_reverse()
-}
-
-jul_ec <- function(bbox, prof){
-temp <- st_crop(prof, bbox)
-tempmap <- ggplot() + geom_point(data = temp, aes(x = profsum, y = surfcond_corr, color = "Surface Background")) + geom_point(data = temp, aes(x = profsum, y = deepcond_corr, color = 'Deep Background'))+ labs(x = "Profile Distance (m)", y = "Conductivity (us/cm)", color = "")+ ylim(c(125, 160))
-if (nrow(filter(temp, anom_sec == 1))>0){
-  tempmap <- tempmap + geom_point(data = filter(temp, anom_sec == 1), aes(x = profsum, y = surfcond_corr, color = "Surface Anomaly"))
-}
-if (nrow(filter(temp, anom_dec == 1))>0){
-  tempmap <- tempmap + geom_point(data = filter(temp, anom_dec == 1), aes(x = profsum, y = deepcond_corr, color = "Deep Anomaly"))
-}
-tempmap + scale_color_manual(values = c("Surface Background" = "grey", "Deep Background" = "black", "Surface Anomaly" = "coral","Deep Anomaly" = "red"))
-}
-jul_ec_L <- lapply(bbox, jul_ec, prof = julleft_3857)
-jul_ec_R <- lapply(bbox, jul_ec, prof = julright_3857)
-
-for (i in 3:5){
-  jul_ec_L[[i]] <- jul_ec_L[[i]] + coord_flip()+scale_x_reverse()
-  jul_ec_R[[i]] <- jul_ec_R[[i]] + coord_flip()+scale_x_reverse()
-}
-
 ```
 Now make a plot sheet for each river segment/side/month:
 ```{r}
 library(gridExtra)
 setwd("~/columbiariver/field-data/04-graphics-outputs/")
-horiz <- rbind(c(1,1,1,1,1),
-             c(1,1,1,1,1),
-             c(2,2,2,2,2), 
-             c(3,3,3,3,NA), 
-             c(4,4,4,4,4))
+horiz <- rbind(c(1,1,1,1,1,1),
+             c(2,2,2,2,2,2), 
+             c(3,3,3,3,3,NA))
 
 res <- theme(axis.text=element_text(size=14), axis.title=element_text(size=18,face="bold"), legend.title = element_text(size = 18, face = "bold"), legend.text  = element_text(size = 14))
 temp<- theme(axis.text=element_text(size=14), axis.title=element_text(size=18,face="bold"))
@@ -505,7 +494,7 @@ for (i in 3:4){
 ggsave(paste('julleft',i,'_grid.png', sep = ""), device = 'png', width = 12, height = 12, units = 'in', grid.arrange(jl_maps[[i]], jl_res[[i]]+res, jul_temp_L[[i]]+temp, jul_ec_L[[i]]+ec))
 }
 
-for (i in 3:4){
+for (i in 3:5){
 ggsave(paste('julright',i,'_grid.png', sep = ""), device = 'png', width = 12, height = 12, units = 'in', grid.arrange(jr_maps[[i]], jr_res[[i]]+res, jul_temp_R[[i]]+temp, jul_ec_R[[i]]+ec))
 }
 
@@ -547,210 +536,209 @@ basemap_ggplot(areaext) + geom_sf(data = jul_sf_3857, size = 0.2, aes(color = as
 ## Plot timeseries by day
 
 ```{r}
-library(tidyr)
-library(ggplot2)
-
-setwd('OneDrive - UCB-O365/Documents/columbiariver/field-data/04-graphics-outputs/')
-
-for (d in 16:19){
-  toplot = filter(feb, day == d)
-  
-  temp = filter(toplot, anom_sec == 1)
-  sec <- ggplot(toplot) + geom_point(aes(TIMESTAMP, surf_Cond_Corr)) + geom_point(data = temp, aes(TIMESTAMP, surf_Cond_Corr), col = 'red') + labs(x="", y = "Surface Cond (us/cm)") 
- 
-  
-temp = filter(toplot, anom_dec == 1)
-  dec <- ggplot(toplot) + geom_point(aes(TIMESTAMP, deep_Cond_Corr)) + geom_point(data = temp, aes(TIMESTAMP, deep_Cond_Corr), col = 'red') + labs(x="", y = "Deep Cond (us/cm)")
-
-temp = filter(toplot, anom_stemp == 1)
-  stemp <- ggplot(toplot) + geom_point(aes(TIMESTAMP, surf_WTemp109_Avg)) + geom_point(data = temp, aes(TIMESTAMP, surf_WTemp109_Avg), col = 'red') + labs(x="", y = "Surface Temp (C)") 
- 
-  
-temp = filter(toplot, anom_dtemp == 1)
-  dtemp <- ggplot(toplot) + geom_point(aes(TIMESTAMP, deeptemp_corr)) + geom_point(data = temp, aes(TIMESTAMP, deeptemp_corr), col = 'red') + labs(x="", y = "Deep Temp (C)")
-  
-  rhodata <- filter(toplot, distance_from_point_m <= 500)
-  rho <- ggplot(rhodata) + geom_point(aes(TIMESTAMP, RHO_I_2), col = 'green') + geom_point(aes(TIMESTAMP, RHO_I_3), col='grey') + labs(x="", y = "Resistivity") + xlim(min(toplot$TIMESTAMP), max(toplot$TIMESTAMP))
-
-  g <- arrangeGrob(sec, dec, stemp, dtemp, rho, top = paste('February', d), ncol=1)
-  ggsave(paste('feb',d,'_bothrho.png', sep = ""), device = 'png', width = 12, height = 12, units = 'in', g)
-}
-
-for (d in 16:19){
-  toplot = filter(feb, day == d)
-  
-  temp = filter(toplot, anom_sec == 1)
-  sec <- ggplot(toplot) + geom_point(aes(TIMESTAMP, surf_Cond_Corr)) + geom_point(data = temp, aes(TIMESTAMP, surf_Cond_Corr), col = 'red') + labs(x="", y = "Surface Cond (us/cm)") 
- 
-  
-temp = filter(toplot, anom_dec == 1)
-  dec <- ggplot(toplot) + geom_point(aes(TIMESTAMP, deep_Cond_Corr)) + geom_point(data = temp, aes(TIMESTAMP, deep_Cond_Corr), col = 'red') + labs(x="", y = "Deep Cond (us/cm)")
-
-temp = filter(toplot, anom_stemp == 1)
-  stemp <- ggplot(toplot) + geom_point(aes(TIMESTAMP, surf_WTemp109_Avg)) + geom_point(data = temp, aes(TIMESTAMP, surf_WTemp109_Avg), col = 'red') + labs(x="", y = "Surface Temp (C)") 
- 
-  
-temp = filter(toplot, anom_dtemp == 1)
-  dtemp <- ggplot(toplot) + geom_point(aes(TIMESTAMP, deeptemp_corr)) + geom_point(data = temp, aes(TIMESTAMP, deeptemp_corr), col = 'red') + labs(x="", y = "Deep Temp (C)")
-  
-  rhodata <- filter(toplot, distance_from_point_m <= 500)
-  rho <- ggplot(rhodata) + geom_point(aes(TIMESTAMP, RHO_I_3)) + labs(x="", y = "RHO_I_3") + xlim(min(toplot$TIMESTAMP), max(toplot$TIMESTAMP))
-
-  g <- arrangeGrob(sec, dec, stemp, dtemp, rho, top = paste('February', d), ncol=1)
-  ggsave(paste('feb',d,'_rhoi3.png', sep = ""), device = 'png', width = 12, height = 12, units = 'in', g)
-}
-
-for (d in 16:19){
-  toplot = filter(feb, day == d)
-  
-  temp = filter(toplot, anom_sec == 1)
-  sec <- ggplot(toplot) + geom_point(aes(TIMESTAMP, surf_Cond_Corr)) + geom_point(data = temp, aes(TIMESTAMP, surf_Cond_Corr), col = 'red') + labs(x="", y = "Surface Cond (us/cm)") 
- 
-  
-temp = filter(toplot, anom_dec == 1)
-  dec <- ggplot(toplot) + geom_point(aes(TIMESTAMP, deep_Cond_Corr)) + geom_point(data = temp, aes(TIMESTAMP, deep_Cond_Corr), col = 'red') + labs(x="", y = "Deep Cond (us/cm)")
-
-temp = filter(toplot, anom_stemp == 1)
-  stemp <- ggplot(toplot) + geom_point(aes(TIMESTAMP, surf_WTemp109_Avg)) + geom_point(data = temp, aes(TIMESTAMP, surf_WTemp109_Avg), col = 'red') + labs(x="", y = "Surface Temp (C)") 
- 
-  
-temp = filter(toplot, anom_dtemp == 1)
-  dtemp <- ggplot(toplot) + geom_point(aes(TIMESTAMP, deeptemp_corr)) + geom_point(data = temp, aes(TIMESTAMP, deeptemp_corr), col = 'red') + labs(x="", y = "Deep Temp (C)")
-  
-  rhodata <- filter(toplot, distance_from_point_m <= 500)
-  rho <- ggplot(rhodata) + geom_point(aes(TIMESTAMP, DEP_BOT_2 - DEP_BOT_1)) + labs(x="", y = "Thick 2 (m)") + xlim(min(toplot$TIMESTAMP), max(toplot$TIMESTAMP))
-
-  g <- arrangeGrob(sec, dec, stemp, dtemp, rho, top = paste('February', d), ncol=1)
-  ggsave(paste('feb',d,'_thick2.png', sep = ""), device = 'png', width = 12, height = 12, units = 'in', g)
-}
+# library(ggplot2)
+# 
+# setwd('OneDrive - UCB-O365/Documents/columbiariver/field-data/04-graphics-outputs/')
+# 
+# for (d in 16:19){
+#   toplot = filter(febwq, day == d)
+#   
+#   temp = filter(toplot, anom_sec == 1)
+#   sec <- ggplot(toplot) + geom_point(aes(TIMESTAMP, surf_Cond_Corr)) + geom_point(data = temp, aes(TIMESTAMP, surf_Cond_Corr), col = 'red') + labs(x="", y = "Surface Cond (us/cm)") 
+#  
+#   
+# temp = filter(toplot, anom_dec == 1)
+#   dec <- ggplot(toplot) + geom_point(aes(TIMESTAMP, deep_Cond_Corr)) + geom_point(data = temp, aes(TIMESTAMP, deep_Cond_Corr), col = 'red') + labs(x="", y = "Deep Cond (us/cm)")
+# 
+# temp = filter(toplot, anom_stemp == 1)
+#   stemp <- ggplot(toplot) + geom_point(aes(TIMESTAMP, surf_WTemp109_Avg)) + geom_point(data = temp, aes(TIMESTAMP, surf_WTemp109_Avg), col = 'red') + labs(x="", y = "Surface Temp (C)") 
+#  
+#   
+# temp = filter(toplot, anom_dtemp == 1)
+#   dtemp <- ggplot(toplot) + geom_point(aes(TIMESTAMP, deeptemp_corr)) + geom_point(data = temp, aes(TIMESTAMP, deeptemp_corr), col = 'red') + labs(x="", y = "Deep Temp (C)")
+#   
+#   rhodata <- filter(toplot, distance_from_point_m <= 500)
+#   rho <- ggplot(rhodata) + geom_point(aes(TIMESTAMP, RHO_I_2), col = 'green') + geom_point(aes(TIMESTAMP, RHO_I_3), col='grey') + labs(x="", y = "Resistivity") + xlim(min(toplot$TIMESTAMP), max(toplot$TIMESTAMP))
+# 
+#   g <- arrangeGrob(sec, dec, stemp, dtemp, rho, top = paste('February', d), ncol=1)
+#   ggsave(paste('feb',d,'_bothrho.png', sep = ""), device = 'png', width = 12, height = 12, units = 'in', g)
+# }
+# 
+# for (d in 16:19){
+#   toplot = filter(feb, day == d)
+#   
+#   temp = filter(toplot, anom_sec == 1)
+#   sec <- ggplot(toplot) + geom_point(aes(TIMESTAMP, surf_Cond_Corr)) + geom_point(data = temp, aes(TIMESTAMP, surf_Cond_Corr), col = 'red') + labs(x="", y = "Surface Cond (us/cm)") 
+#  
+#   
+# temp = filter(toplot, anom_dec == 1)
+#   dec <- ggplot(toplot) + geom_point(aes(TIMESTAMP, deep_Cond_Corr)) + geom_point(data = temp, aes(TIMESTAMP, deep_Cond_Corr), col = 'red') + labs(x="", y = "Deep Cond (us/cm)")
+# 
+# temp = filter(toplot, anom_stemp == 1)
+#   stemp <- ggplot(toplot) + geom_point(aes(TIMESTAMP, surf_WTemp109_Avg)) + geom_point(data = temp, aes(TIMESTAMP, surf_WTemp109_Avg), col = 'red') + labs(x="", y = "Surface Temp (C)") 
+#  
+#   
+# temp = filter(toplot, anom_dtemp == 1)
+#   dtemp <- ggplot(toplot) + geom_point(aes(TIMESTAMP, deeptemp_corr)) + geom_point(data = temp, aes(TIMESTAMP, deeptemp_corr), col = 'red') + labs(x="", y = "Deep Temp (C)")
+#   
+#   rhodata <- filter(toplot, distance_from_point_m <= 500)
+#   rho <- ggplot(rhodata) + geom_point(aes(TIMESTAMP, RHO_I_3)) + labs(x="", y = "RHO_I_3") + xlim(min(toplot$TIMESTAMP), max(toplot$TIMESTAMP))
+# 
+#   g <- arrangeGrob(sec, dec, stemp, dtemp, rho, top = paste('February', d), ncol=1)
+#   ggsave(paste('feb',d,'_rhoi3.png', sep = ""), device = 'png', width = 12, height = 12, units = 'in', g)
+# }
+# 
+# for (d in 16:19){
+#   toplot = filter(feb, day == d)
+#   
+#   temp = filter(toplot, anom_sec == 1)
+#   sec <- ggplot(toplot) + geom_point(aes(TIMESTAMP, surf_Cond_Corr)) + geom_point(data = temp, aes(TIMESTAMP, surf_Cond_Corr), col = 'red') + labs(x="", y = "Surface Cond (us/cm)") 
+#  
+#   
+# temp = filter(toplot, anom_dec == 1)
+#   dec <- ggplot(toplot) + geom_point(aes(TIMESTAMP, deep_Cond_Corr)) + geom_point(data = temp, aes(TIMESTAMP, deep_Cond_Corr), col = 'red') + labs(x="", y = "Deep Cond (us/cm)")
+# 
+# temp = filter(toplot, anom_stemp == 1)
+#   stemp <- ggplot(toplot) + geom_point(aes(TIMESTAMP, surf_WTemp109_Avg)) + geom_point(data = temp, aes(TIMESTAMP, surf_WTemp109_Avg), col = 'red') + labs(x="", y = "Surface Temp (C)") 
+#  
+#   
+# temp = filter(toplot, anom_dtemp == 1)
+#   dtemp <- ggplot(toplot) + geom_point(aes(TIMESTAMP, deeptemp_corr)) + geom_point(data = temp, aes(TIMESTAMP, deeptemp_corr), col = 'red') + labs(x="", y = "Deep Temp (C)")
+#   
+#   rhodata <- filter(toplot, distance_from_point_m <= 500)
+#   rho <- ggplot(rhodata) + geom_point(aes(TIMESTAMP, DEP_BOT_2 - DEP_BOT_1)) + labs(x="", y = "Thick 2 (m)") + xlim(min(toplot$TIMESTAMP), max(toplot$TIMESTAMP))
+# 
+#   g <- arrangeGrob(sec, dec, stemp, dtemp, rho, top = paste('February', d), ncol=1)
+#   ggsave(paste('feb',d,'_thick2.png', sep = ""), device = 'png', width = 12, height = 12, units = 'in', g)
+# }
 
 ```
 ```{r mapfunctions}
 # create the mapping functions
-rhomap <- function(subarea, month_sf, layer) {
-  temp1 <- st_crop(month_sf, st_bbox(subarea))
-  temp2 <- filter(temp1, distance_from_point_m < 500)
-  
-  basemap_ggplot(subarea) + geom_sf(data = temp1, color = 'grey', size = 1) + geom_sf(data = temp2, size = 3, aes(color = {{layer}})) + labs(x="", y="", color = "Layer 2 Resistivity") + scale_color_gradientn(colors = rainbow(2))
-}
-
-anommap <- function(subarea, month_sf, layer) {
-  temp1 <- st_crop(month_sf, st_bbox(subarea))
-  temp2 <- filter(temp1, !is.na({{layer}}))
-
-  basemap_ggplot(subarea) + geom_sf(data = temp1, color = 'grey', size = 1) + geom_sf(data = temp2, size = 3, color = 'red') + labs(x="", y="")
-}
+# rhomap <- function(subarea, month_sf, layer) {
+#   temp1 <- st_crop(month_sf, st_bbox(subarea))
+#   temp2 <- filter(temp1, distance_from_point_m < 500)
+#   
+#   basemap_ggplot(subarea) + geom_sf(data = temp1, color = 'grey', size = 1) + geom_sf(data = temp2, size = 3, aes(color = {{layer}})) + labs(x="", y="", color = "Layer 2 Resistivity") + scale_color_gradientn(colors = rainbow(2))
+# }
+# 
+# anommap <- function(subarea, month_sf, layer) {
+#   temp1 <- st_crop(month_sf, st_bbox(subarea))
+#   temp2 <- filter(temp1, !is.na({{layer}}))
+# 
+#   basemap_ggplot(subarea) + geom_sf(data = temp1, color = 'grey', size = 1) + geom_sf(data = temp2, size = 3, color = 'red') + labs(x="", y="")
+# }
 
 ```
 
 ```{r createmaps}
-# run chunks one at a time, then use grid.arrange to display plots
-tempfeb <- grid.arrange(rhomap(horn, feb_sf, RHO_I_2) + ggtitle('February'), anommap(horn, feb_sf, anom_stemp) + ggtitle('Surf Temp Anomalies'), anommap(horn, feb_sf, anom_dtemp)+ ggtitle('Deep Temp Anomalies'))
-tempjul <- grid.arrange(rhomap(horn, jul_sf, RHO_I_2) + ggtitle('July'), anommap(horn, jul_sf, anom_stemp) + ggtitle('Surf Temp Anomalies'), anommap(horn, jul_sf, anom_dtemp)+ ggtitle('Deep Temp Anomalies'))
-ecfeb <- grid.arrange(rhomap(horn, feb_sf, RHO_I_2) + ggtitle('February'), anommap(horn, feb_sf, anom_sec) + ggtitle('Surf EC Anomalies'), anommap(horn, feb_sf, anom_dec)+ ggtitle('Deep EC Anomalies'))
-ecjul <- grid.arrange(rhomap(horn, jul_sf, RHO_I_2) + ggtitle('July'), anommap(horn, jul_sf, anom_sec) + ggtitle('Surf EC Anomalies'), anommap(horn, jul_sf, anom_dec)+ ggtitle('Deep EC Anomalies'))
-#grid.arrange(tempfeb, tempjul, ncol =2)
-#grid.arrange(ecfeb, ecjul, ncol = 2)
-
-tempfeb <- grid.arrange(rhomap(savageisl, feb_sf, RHO_I_2) + ggtitle('February'), anommap(savageisl, feb_sf, anom_stemp) + ggtitle('Surf Temp Anomalies'), anommap(savageisl, feb_sf, anom_dtemp)+ ggtitle('Deep Temp Anomalies'))
-tempjul <- grid.arrange(rhomap(savageisl, jul_sf, RHO_I_2) + ggtitle('July'), anommap(savageisl, jul_sf, anom_stemp) + ggtitle('Surf Temp Anomalies'), anommap(savageisl, jul_sf, anom_dtemp)+ ggtitle('Deep Temp Anomalies'))
-ecfeb <- grid.arrange(rhomap(savageisl, feb_sf, RHO_I_2) + ggtitle('February'), anommap(savageisl, feb_sf, anom_sec) + ggtitle('Surf EC Anomalies'), anommap(savageisl, feb_sf, anom_dec)+ ggtitle('Deep EC Anomalies'))
-ecjul <- grid.arrange(rhomap(savageisl, jul_sf, RHO_I_2) + ggtitle('July'), anommap(savageisl, jul_sf, anom_sec) + ggtitle('Surf EC Anomalies'), anommap(savageisl, jul_sf, anom_dec)+ ggtitle('Deep EC Anomalies'))
-
-tempfeb <- grid.arrange(rhomap(a300, feb_sf, RHO_I_2) + ggtitle('February'), anommap(a300, feb_sf, anom_stemp) + ggtitle('Surf Temp Anomalies'), anommap(a300, feb_sf, anom_dtemp)+ ggtitle('Deep Temp Anomalies'))
-tempjul <- grid.arrange(rhomap(a300, jul_sf, RHO_I_2) + ggtitle('July'), anommap(a300, jul_sf, anom_stemp) + ggtitle('Surf Temp Anomalies'), anommap(a300, jul_sf, anom_dtemp)+ ggtitle('Deep Temp Anomalies'))
-ecfeb <- grid.arrange(rhomap(a300, feb_sf, RHO_I_2) + ggtitle('February'), anommap(a300, feb_sf, anom_sec) + ggtitle('Surf EC Anomalies'), anommap(a300, feb_sf, anom_dec)+ ggtitle('Deep EC Anomalies'))
-ecjul <- grid.arrange(rhomap(a300, jul_sf, RHO_I_2) + ggtitle('July'), anommap(a300, jul_sf, anom_sec) + ggtitle('Surf EC Anomalies'), anommap(a300, jul_sf, anom_dec)+ ggtitle('Deep EC Anomalies'))
+# # run chunks one at a time, then use grid.arrange to display plots
+# tempfeb <- grid.arrange(rhomap(horn, feb_sf, RHO_I_2) + ggtitle('February'), anommap(horn, feb_sf, anom_stemp) + ggtitle('Surf Temp Anomalies'), anommap(horn, feb_sf, anom_dtemp)+ ggtitle('Deep Temp Anomalies'))
+# tempjul <- grid.arrange(rhomap(horn, jul_sf, RHO_I_2) + ggtitle('July'), anommap(horn, jul_sf, anom_stemp) + ggtitle('Surf Temp Anomalies'), anommap(horn, jul_sf, anom_dtemp)+ ggtitle('Deep Temp Anomalies'))
+# ecfeb <- grid.arrange(rhomap(horn, feb_sf, RHO_I_2) + ggtitle('February'), anommap(horn, feb_sf, anom_sec) + ggtitle('Surf EC Anomalies'), anommap(horn, feb_sf, anom_dec)+ ggtitle('Deep EC Anomalies'))
+# ecjul <- grid.arrange(rhomap(horn, jul_sf, RHO_I_2) + ggtitle('July'), anommap(horn, jul_sf, anom_sec) + ggtitle('Surf EC Anomalies'), anommap(horn, jul_sf, anom_dec)+ ggtitle('Deep EC Anomalies'))
+# #grid.arrange(tempfeb, tempjul, ncol =2)
+# #grid.arrange(ecfeb, ecjul, ncol = 2)
+# 
+# tempfeb <- grid.arrange(rhomap(savageisl, feb_sf, RHO_I_2) + ggtitle('February'), anommap(savageisl, feb_sf, anom_stemp) + ggtitle('Surf Temp Anomalies'), anommap(savageisl, feb_sf, anom_dtemp)+ ggtitle('Deep Temp Anomalies'))
+# tempjul <- grid.arrange(rhomap(savageisl, jul_sf, RHO_I_2) + ggtitle('July'), anommap(savageisl, jul_sf, anom_stemp) + ggtitle('Surf Temp Anomalies'), anommap(savageisl, jul_sf, anom_dtemp)+ ggtitle('Deep Temp Anomalies'))
+# ecfeb <- grid.arrange(rhomap(savageisl, feb_sf, RHO_I_2) + ggtitle('February'), anommap(savageisl, feb_sf, anom_sec) + ggtitle('Surf EC Anomalies'), anommap(savageisl, feb_sf, anom_dec)+ ggtitle('Deep EC Anomalies'))
+# ecjul <- grid.arrange(rhomap(savageisl, jul_sf, RHO_I_2) + ggtitle('July'), anommap(savageisl, jul_sf, anom_sec) + ggtitle('Surf EC Anomalies'), anommap(savageisl, jul_sf, anom_dec)+ ggtitle('Deep EC Anomalies'))
+# 
+# tempfeb <- grid.arrange(rhomap(a300, feb_sf, RHO_I_2) + ggtitle('February'), anommap(a300, feb_sf, anom_stemp) + ggtitle('Surf Temp Anomalies'), anommap(a300, feb_sf, anom_dtemp)+ ggtitle('Deep Temp Anomalies'))
+# tempjul <- grid.arrange(rhomap(a300, jul_sf, RHO_I_2) + ggtitle('July'), anommap(a300, jul_sf, anom_stemp) + ggtitle('Surf Temp Anomalies'), anommap(a300, jul_sf, anom_dtemp)+ ggtitle('Deep Temp Anomalies'))
+# ecfeb <- grid.arrange(rhomap(a300, feb_sf, RHO_I_2) + ggtitle('February'), anommap(a300, feb_sf, anom_sec) + ggtitle('Surf EC Anomalies'), anommap(a300, feb_sf, anom_dec)+ ggtitle('Deep EC Anomalies'))
+# ecjul <- grid.arrange(rhomap(a300, jul_sf, RHO_I_2) + ggtitle('July'), anommap(a300, jul_sf, anom_sec) + ggtitle('Surf EC Anomalies'), anommap(a300, jul_sf, anom_dec)+ ggtitle('Deep EC Anomalies'))
 
 ```
 
 ```{r}
-setwd('OneDrive - UCB-O365/Documents/columbiariver/field-data/04-graphics-outputs/')
-for (d in 20:23){
-  toplot = filter(jul, day == d)
-  
-  temp = filter(toplot, anom_sec == 1)
-  sec <- ggplot(toplot) + geom_point(aes(TIMESTAMP, surfcond_corr)) + geom_point(data = temp, aes(TIMESTAMP,  surfcond_corr), col = 'red') + labs(x="", y = "Surface Cond (us/cm)") 
- 
-  
-temp = filter(toplot, anom_dec == 1)
-  dec <- ggplot(toplot) + geom_point(aes(TIMESTAMP, deepcond_corr)) + geom_point(data = temp, aes(TIMESTAMP, deepcond_corr), col = 'red') + labs(x="", y = "Deep Cond (us/cm)")
-
-temp = filter(toplot, anom_stemp == 1)
-  stemp <- ggplot(toplot) + geom_point(aes(TIMESTAMP, surf_WTemp109_Avg)) + geom_point(data = temp, aes(TIMESTAMP, surf_WTemp109_Avg), col = 'red') + labs(x="", y = "Surface Temp (C)") 
- 
-  
-temp = filter(toplot, anom_dtemp == 1)
-  dtemp <- ggplot(toplot) + geom_point(aes(TIMESTAMP, deep_WTemp109_Avg)) + geom_point(data = temp, aes(TIMESTAMP, deep_WTemp109_Avg), col = 'red') + labs(x="", y = "Deep Temp (C)")
-  
-  rhodata <- filter(toplot, distance_from_point_m <= 500)
-  rho <- ggplot(rhodata) + geom_point(aes(TIMESTAMP, RHO_I_2), col = 'green') + geom_point(aes(TIMESTAMP, RHO_I_3), col='grey') + labs(x="", y = "Resistivity") + xlim(min(toplot$TIMESTAMP), max(toplot$TIMESTAMP)) + ylim(0, 250)
-
-  g <- arrangeGrob(sec, dec, stemp, dtemp, rho, top = paste('July', d), ncol=1)
-  ggsave(paste('jul',d,'_bothrho.png', sep = ""), device = 'png', width = 12, height = 12, units = 'in', g)
-}
+# setwd('OneDrive - UCB-O365/Documents/columbiariver/field-data/04-graphics-outputs/')
+# for (d in 20:23){
+#   toplot = filter(jul, day == d)
+#   
+#   temp = filter(toplot, anom_sec == 1)
+#   sec <- ggplot(toplot) + geom_point(aes(TIMESTAMP, surfcond_corr)) + geom_point(data = temp, aes(TIMESTAMP,  surfcond_corr), col = 'red') + labs(x="", y = "Surface Cond (us/cm)") 
+#  
+#   
+# temp = filter(toplot, anom_dec == 1)
+#   dec <- ggplot(toplot) + geom_point(aes(TIMESTAMP, deepcond_corr)) + geom_point(data = temp, aes(TIMESTAMP, deepcond_corr), col = 'red') + labs(x="", y = "Deep Cond (us/cm)")
+# 
+# temp = filter(toplot, anom_stemp == 1)
+#   stemp <- ggplot(toplot) + geom_point(aes(TIMESTAMP, surf_WTemp109_Avg)) + geom_point(data = temp, aes(TIMESTAMP, surf_WTemp109_Avg), col = 'red') + labs(x="", y = "Surface Temp (C)") 
+#  
+#   
+# temp = filter(toplot, anom_dtemp == 1)
+#   dtemp <- ggplot(toplot) + geom_point(aes(TIMESTAMP, deep_WTemp109_Avg)) + geom_point(data = temp, aes(TIMESTAMP, deep_WTemp109_Avg), col = 'red') + labs(x="", y = "Deep Temp (C)")
+#   
+#   rhodata <- filter(toplot, distance_from_point_m <= 500)
+#   rho <- ggplot(rhodata) + geom_point(aes(TIMESTAMP, RHO_I_2), col = 'green') + geom_point(aes(TIMESTAMP, RHO_I_3), col='grey') + labs(x="", y = "Resistivity") + xlim(min(toplot$TIMESTAMP), max(toplot$TIMESTAMP)) + ylim(0, 250)
+# 
+#   g <- arrangeGrob(sec, dec, stemp, dtemp, rho, top = paste('July', d), ncol=1)
+#   ggsave(paste('jul',d,'_bothrho.png', sep = ""), device = 'png', width = 12, height = 12, units = 'in', g)
+# }
 ```
 
 
 ```{r}
-for (d in 16:19){
-  toplot = filter(feb, day == d)
-  toplotlong <- gather(toplot, key = "analysis", value = "value", c(28,32,34,35,50,102))
-  options(repr.plot.width = 12, repr.plot.height = 50)
-  plot <- ggplot(toplotlong, aes(TIMESTAMP, value, color = distance_from_point_m)) +geom_point() + facet_wrap(~analysis, scales = "free_y", ncol = 1) + ggtitle(paste("February", d))+scale_colour_gradientn(colours=rainbow(2), limits=c(0, quantile(feb$distance_from_point_m, 0.95)))
-  ggsave(paste('feb',d,'_all_distcolor.png', sep = ""), device = 'png', width = 12, height = 12, units = 'in')
-}
-
-for (d in 20:23){
-  toplot = filter(jul, day == d)
-  toplotlong <- gather(toplot, key = "analysis", value = "value", c(28,29,32,33,47,99))
-  #options(repr.plot.width = 12, repr.plot.height = 50)
-  plot <- ggplot(toplotlong, aes(TIMESTAMP, value, color = distance_from_point_m)) +geom_point() + facet_wrap(~analysis, scales = "free_y", ncol = 1) + ggtitle(paste("July", d))+scale_colour_gradientn(colours=rainbow(2), limits=c(0, quantile(jul$distance_from_point_m, 0.95)))
-  ggsave(paste('jul',d,'_all_distcolor.png', sep = ""), device = 'png', width = 12, height = 12, units = 'in')
-}
+# for (d in 16:19){
+#   toplot = filter(feb, day == d)
+#   toplotlong <- gather(toplot, key = "analysis", value = "value", c(28,32,34,35,50,102))
+#   options(repr.plot.width = 12, repr.plot.height = 50)
+#   plot <- ggplot(toplotlong, aes(TIMESTAMP, value, color = distance_from_point_m)) +geom_point() + facet_wrap(~analysis, scales = "free_y", ncol = 1) + ggtitle(paste("February", d))+scale_colour_gradientn(colours=rainbow(2), limits=c(0, quantile(feb$distance_from_point_m, 0.95)))
+#   ggsave(paste('feb',d,'_all_distcolor.png', sep = ""), device = 'png', width = 12, height = 12, units = 'in')
+# }
+# 
+# for (d in 20:23){
+#   toplot = filter(jul, day == d)
+#   toplotlong <- gather(toplot, key = "analysis", value = "value", c(28,29,32,33,47,99))
+#   #options(repr.plot.width = 12, repr.plot.height = 50)
+#   plot <- ggplot(toplotlong, aes(TIMESTAMP, value, color = distance_from_point_m)) +geom_point() + facet_wrap(~analysis, scales = "free_y", ncol = 1) + ggtitle(paste("July", d))+scale_colour_gradientn(colours=rainbow(2), limits=c(0, quantile(jul$distance_from_point_m, 0.95)))
+#   ggsave(paste('jul',d,'_all_distcolor.png', sep = ""), device = 'png', width = 12, height = 12, units = 'in')
+# }
 ```
 
 ```{r}
-for (d in 20:23){
-  toplot = filter(jul, day == d)
-  #toplotlong <- gather(toplot, key = "analysis", value = "value", c(28,29,32,33,47,99))
-  #options(repr.plot.width = 12, repr.plot.height = 50)
-  #plot <- ggplot(toplotlong, aes(TIMESTAMP, value)) +geom_point() + facet_wrap(~analysis, scales = "free_y", ncol = 1) + ggtitle(paste("July", d))
-  #suppressWarnings(print(plot))
-  anomlong <- gather(toplot, "measure", "value", c(47, 99))
-  plot <- ggplot(anomlong, aes(TIMESTAMP, value)) +geom_point() + facet_wrap(~measure, scales = "free_y", ncol = 1) + ggtitle(paste("July", d))
-  suppressWarnings(print(plot))
-  plot <- ggplot(toplot, aes(TIMESTAMP, RHO_I_2, size = anom_class))+ geom_point()+ ggtitle(paste("July", d))
-  suppressWarnings(print(plot))
-  }
+# for (d in 20:23){
+#   toplot = filter(jul, day == d)
+#   #toplotlong <- gather(toplot, key = "analysis", value = "value", c(28,29,32,33,47,99))
+#   #options(repr.plot.width = 12, repr.plot.height = 50)
+#   #plot <- ggplot(toplotlong, aes(TIMESTAMP, value)) +geom_point() + facet_wrap(~analysis, scales = "free_y", ncol = 1) + ggtitle(paste("July", d))
+#   #suppressWarnings(print(plot))
+#   anomlong <- gather(toplot, "measure", "value", c(47, 99))
+#   plot <- ggplot(anomlong, aes(TIMESTAMP, value)) +geom_point() + facet_wrap(~measure, scales = "free_y", ncol = 1) + ggtitle(paste("July", d))
+#   suppressWarnings(print(plot))
+#   plot <- ggplot(toplot, aes(TIMESTAMP, RHO_I_2, size = anom_class))+ geom_point()+ ggtitle(paste("July", d))
+#   suppressWarnings(print(plot))
+#   }
 ```
 
 
 ```{r}
-for (d in 16:19){
-  toplot = filter(feb, day == d)
-  plot <- ggplot(toplot, aes(TIMESTAMP, RHO_I_2, size = anom_class, color = distance_from_point_m))+ geom_point()+ ggtitle(paste("February", d))+scale_colour_gradientn(colours=rainbow(2), limits=c(0, quantile(feb$distance_from_point_m, 0.95)))
-  suppressWarnings(print(plot))
-}
-
-
-for (d in 20:23){
-  toplot = filter(jul, day == d)
-  plot <- ggplot(toplot, aes(TIMESTAMP, RHO_I_2, size = anom_class, color = distance_from_point_m))+ geom_point()+ ggtitle(paste("July", d)) + scale_colour_gradientn(colours=rainbow(2), limits=c(0, quantile(jul$distance_from_point_m, 0.95)))
-  suppressWarnings(print(plot))
-}
-```
-```{r}
-for (d in 16:19){
-  toplot = filter(feb, day == d)
-  plot(toplot['TIMESTAMP'], toplot['deep_Cond_Corr'], col = as.factor(toplot$anom_class))
-}
-
-
-for (d in 20:23){
-  toplot = filter(jul, day == d)
-  plot <- ggplot(toplot, aes(TIMESTAMP, RHO_I_2, size = anom_class, color = distance_from_point_m))+ geom_point()+ ggtitle(paste("July", d)) + scale_colour_gradientn(colours=rainbow(2), limits=c(0, quantile(jul$distance_from_point_m, 0.95)))
-  suppressWarnings(print(plot))
-}
+# for (d in 16:19){
+#   toplot = filter(feb, day == d)
+#   plot <- ggplot(toplot, aes(TIMESTAMP, RHO_I_2, size = anom_class, color = distance_from_point_m))+ geom_point()+ ggtitle(paste("February", d))+scale_colour_gradientn(colours=rainbow(2), limits=c(0, quantile(feb$distance_from_point_m, 0.95)))
+#   suppressWarnings(print(plot))
+# }
+# 
+# 
+# for (d in 20:23){
+#   toplot = filter(jul, day == d)
+#   plot <- ggplot(toplot, aes(TIMESTAMP, RHO_I_2, size = anom_class, color = distance_from_point_m))+ geom_point()+ ggtitle(paste("July", d)) + scale_colour_gradientn(colours=rainbow(2), limits=c(0, quantile(jul$distance_from_point_m, 0.95)))
+#   suppressWarnings(print(plot))
+# }
+# ```
+# ```{r}
+# for (d in 16:19){
+#   toplot = filter(feb, day == d)
+#   plot(toplot['TIMESTAMP'], toplot['deep_Cond_Corr'], col = as.factor(toplot$anom_class))
+# }
+# 
+# 
+# for (d in 20:23){
+#   toplot = filter(jul, day == d)
+#   plot <- ggplot(toplot, aes(TIMESTAMP, RHO_I_2, size = anom_class, color = distance_from_point_m))+ geom_point()+ ggtitle(paste("July", d)) + scale_colour_gradientn(colours=rainbow(2), limits=c(0, quantile(jul$distance_from_point_m, 0.95)))
+#   suppressWarnings(print(plot))
+# }
 ```
 
