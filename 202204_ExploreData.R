@@ -138,9 +138,24 @@ tmap_save(radonmap, filename = "202204_Rn.html")
 
 #### Average Data to 10s ####
 # Average data in 10 second chunks for faster plotting
-apr_sf$X <- st_coordinates(apr_sf)[,1]
-apr_sf$Y <- st_coordinates(apr_sf)[,2]
-aprdata <- st_drop_geometry(apr_sf)
+Left$X <- st_coordinates(Left)[,1]
+Left$Y <- st_coordinates(Left)[,2]
+Right$X <- st_coordinates(Right)[,1]
+Right$Y <- st_coordinates(Right)[,2]
+Left_data <- st_drop_geometry(Left)
+Right_data <- st_drop_geometry(Right)
 
-dat <- as.data.table(aprdata[c('TIMESTAMP', 'surfcond_corr', 'deepcond_corr', 'surf_WTemp109_Avg', 'deep_WTemp109_Avg', 'X', 'Y')])
-aprdata_10s <- as.data.frame(dat[,lapply(.SD, mean),.(TIMESTAMP = round_date(TIMESTAMP, "10 seconds"))])
+dat_L <- as.data.table(Left_data[c('TIMESTAMP', 'surfcond_corr', 'deepcond_corr', 'surf_WTemp109_Avg', 'deep_WTemp109_Avg', 'X', 'Y')])
+dat_R <- as.data.table(Right_data[c('TIMESTAMP', 'surfcond_corr', 'deepcond_corr', 'surf_WTemp109_Avg', 'deep_WTemp109_Avg', 'X', 'Y')])
+
+Left_10s <- as.data.frame(dat_L[,lapply(.SD, mean),.(TIMESTAMP = round_date(TIMESTAMP, "10 seconds"))])
+Right_10s <- as.data.frame(dat_R[,lapply(.SD, mean),.(TIMESTAMP = round_date(TIMESTAMP, "10 seconds"))])
+
+# Make the averaged data spatial
+coordinates(Left_10s) <- ~X+Y
+coordinates(Right_10s) <- ~X+Y
+Left_10s <- Left_10s %>% st_as_sf() %>% st_set_crs(3857)
+Right_10s <- Right_10s %>% st_as_sf() %>% st_set_crs(3857)
+
+#### Map the averaged conductivity and temperature data ####
+tm_shape(Left_10s) + tm_dots(col="deepcond_corr", border.lwd = 0, style = "cont", palette = "viridis") 
