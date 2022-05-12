@@ -12,15 +12,23 @@ library(tmap)
 library(leaflet)
 
 #### Load WQ Data ####
-aprwq <- read.csv('~/columbiariver/field-data/03-processed-data/apr2022_cleandata.csv')
+
+aprwq <- read.csv('~/columbiariver/field-data/03-processed-data/apr_cleandata.csv.')
 aprwq <- rename(aprwq, LAT = Lat, LON = Lon)
 aprwq$TIMESTAMP <- as_datetime(aprwq$TIMESTAMP, tz = "America/Los_Angeles")
+
+aprwq_hole <- read.csv('~/columbiariver/field-data/03-processed-data/aprholes_inwater_cleandata.csv')
+aprwq_hole <- rename(aprwq_hole, LAT = Lat, LON = Lon)
+aprwq_hole$TIMESTAMP <- as_datetime(aprwq_hole$TIMESTAMP, tz = "America/Los_Angeles")
 
 crpoly <- st_read('~/columbiariver/public-data/02-raw-data/poly_hanfordreach.shp')
 
 #### Make data spatial ####
 coordinates(aprwq) <- c('LON', 'LAT')
 apr_sf <- st_as_sf(aprwq) %>% st_set_crs(4326) %>% st_transform(3857) 
+
+coordinates(aprwq_hole) <- c('LON', 'LAT')
+aprwq_hole_sf <- st_as_sf(aprwq_hole) %>% st_set_crs(4326) %>% st_transform(3857)
 
 
 # Some of the points appear to be on the river (but not in the polygon) and some points are way outside
@@ -130,11 +138,17 @@ c(apr_left_snapped[!is.na(apr_left_snapped$Corrected.Mean..pCi.L.), ]$Tape.Color
 
 # Subset the radon samples
 apr_rn <- filter(apr_sf, !is.na(apr_sf$Corrected.Mean..pCi.L.))
+aprhole_rn <- filter(aprwq_hole_sf, !is.na(aprwq_hole_sf$Corrected.Mean..pCi.L.))
+
 apr_rn$Corrected.Mean..pCi.L. <- round(apr_rn$Corrected.Mean..pCi.L., digits = 2)
+aprhole_rn$Corrected.Mean..pCi.L. <- round(aprhole_rn$Corrected.Mean..pCi.L., digits = 2)
+
 # Set up tmap
 tmap_mode("view")
-radonmap <- tm_shape(apr_rn) + tm_dots(col = "Corrected.Mean..pCi.L.", id = "Corrected.Mean..pCi.L.", title = "Rn (pCi/L)", size = 0.05)
-tmap_save(radonmap, filename = "202204_Rn.html")
+radonmap <- tm_shape(apr_rn) + tm_dots(col = "Corrected.Mean..pCi.L.", id = "Corrected.Mean..pCi.L.", title = "Rn (pCi/L)", size = 0.05, breaks = seq(0,20, by = 5)) +
+  tm_shape(aprhole_rn) + tm_dots(col = "Corrected.Mean..pCi.L.", id = "Corrected.Mean..pCi.L.", title = "Rn (pCi/L)", size = 0.05, breaks = seq(0,20, by = 5), 
+                                 border.col = 'black', border.lwd = 3, legend.show = F)
+tmap_save(radonmap, filename = "202204_Rn_withholes.html")
 
 #### Average Data to 10s ####
 # Average data in 10 second chunks for faster plotting
