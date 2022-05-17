@@ -3,6 +3,9 @@ library(lubridate)
 library(ggplot2)
 library(gridExtra)
 library(grid)
+library(sp)
+library(sf)
+library(tmap)
 
 #### Load Data ####
 slopefiles = list.files(path = "Data/WQ_Slopes", pattern = "V2")
@@ -76,5 +79,50 @@ mean(jul$deep_Cuncorr_Avg[jul$anom_dec == 0])
 mean(apr$surf_Cuncorr_Avg[apr$anom_sec == 0])
 mean(apr$deep_Cuncorr_Avg[apr$anom_dec == 0])
 
+#### Make Data Spatial ####
+coordinates(feb) <- c('Lon', 'Lat')
+feb_sf <- st_as_sf(feb) %>% st_set_crs(4326) %>% st_transform(3857)
+
+coordinates(jul) <- c('Lon', 'Lat')
+jul_sf <- st_as_sf(jul) %>% st_set_crs(4326) %>% st_transform(3857)
+
+coordinates(apr) <- c('Lon', 'Lat')
+apr_sf <- st_as_sf(apr) %>% st_set_crs(4326) %>% st_transform(3857)
+
+#### Check Locations for Points Off River ####
+crpoly <- st_read('~/columbiariver/public-data/02-raw-data/poly_hanfordreach.shp')
+ggplot(crpoly)+geom_sf()+geom_sf(data = feb_sf, pch = '.', col = 'red')
+ggplot(crpoly)+geom_sf()+geom_sf(data = jul_sf, pch = '.', col = 'red')
+ggplot(crpoly)+geom_sf()+geom_sf(data = apr_sf, pch = '.', col = 'red')
+# Only April has points where GPS was off
+
+#### Clean April Data ####
+# Use a 400 m buffer to see which points are outside the river
+buff <- crpoly %>% st_union() %>% st_buffer(400)
+onriver <- lengths(st_intersects(apr_sf, buff)) > 0
+
+# Take the points not on the river out of the dataframe
+apr_sf <- apr_sf[onriver, ]
+offriver_apr <- apr_sf[!onriver, ]
+
 #### Left/Right Profiles ####
+# Define mapping CRS
+epsg3857 <- CRS(SRS_string = "EPSG:3857")
+
+# Load profile shapefiles
+leftprof <- st_read('~/columbiariver/field-data/03-processed-data/cr_leftshore.shp') %>% st_transform(3857) %>% as_Spatial()
+slot(leftprof, "proj4string") <- epsg3857
+rightprof <- st_read('~/columbiariver/field-data/03-processed-data/cr_rightshore.shp') %>% st_transform(3857) %>% as_Spatial()
+slot(rightprof, "proj4string") <- epsg3857
+
+# Split February
+# Split July
+# Split April
+apr_left <- rbind(apr_sf[day(apr_sf$TIMESTAMP) == 19,], apr_sf[day(apr_sf$TIMESTAMP) == 21 & apr_sf$TIMESTAMP < '2022-04-21 14:27:00',])
+apr_left <- as_Spatial(apr_left)
+slot(apr_left, "proj4string") <- epsg3857
+
+apr_right <- rbind(apr_sf[day(apr_sf$TIMESTAMP) == 20,], apr_sf[day(apr_sf$TIMESTAMP) == 21 & apr_sf$TIMESTAMP > '2022-04-21 14:27:00',])
+apr_right <- as_Spatial(apr_right)
+slot(apr_right, "proj4string") <- epsg3857
 
