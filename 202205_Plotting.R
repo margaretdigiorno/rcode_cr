@@ -114,9 +114,29 @@ leftprof <- st_read('~/columbiariver/field-data/03-processed-data/cr_leftshore.s
 slot(leftprof, "proj4string") <- epsg3857
 rightprof <- st_read('~/columbiariver/field-data/03-processed-data/cr_rightshore.shp') %>% st_transform(3857) %>% as_Spatial()
 slot(rightprof, "proj4string") <- epsg3857
+profs <- rbind(st_as_sf(leftprof), st_as_sf(rightprof))
 
 # Split February
+# Add column for which profile each point is closer to
+feb_sf$side <-  st_nearest_feature(feb_sf, profs)
+
+feb_left <- filter(feb_sf, side == 1)
+feb_left <- as_Spatial(feb_left)
+slot(feb_left, "proj4string") <- epsg3857
+
+feb_right <- filter(feb_sf, side == 2)
+feb_right <- as_Spatial(feb_right)
+slot(feb_right, "proj4string") <- epsg3857
+
 # Split July
+jul_left <- filter(jul_sf, day == 20 | day == 22)
+jul_left <- as_Spatial(jul_left)
+slot(jul_left, "proj4string") <- epsg3857
+
+jul_right <- filter(jul_sf, day == 21 | day == 23)
+jul_right <- as_Spatial(jul_right)
+slot(jul_right, "proj4string") <- epsg3857
+
 # Split April
 apr_left <- rbind(apr_sf[day(apr_sf$TIMESTAMP) == 19,], apr_sf[day(apr_sf$TIMESTAMP) == 21 & apr_sf$TIMESTAMP < '2022-04-21 14:27:00',])
 apr_left <- as_Spatial(apr_left)
