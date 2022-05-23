@@ -270,3 +270,18 @@ temp_r <- ggplot(ss_r[!is.na(ss_r$anom_dtemp),]) + geom_point(aes(x=profdist, y 
   labs(x =  "Distance Along Profile (km)", y = "Temperature (C)", color = "", title = "Right Shore") + 
   facet_grid_sc(month ~., scales = list(y = scales_y)) + guides(colour = guide_legend(override.aes = list(size=3)))
 ggsave('temp_r.png', plot = temp_r, width = 14, height = 8, units = 'in')
+
+#### Average deep hole data to single point for each ####
+
+# Load data and convert timestamp class
+holedata <- read.csv("Data/aprholes_inwater_cleandata.csv")
+holedata$TIMESTAMP <- as_datetime(holedata$TIMESTAMP, tz = "America/Los_Angeles")
+coordinates(holedata) <- c('Lon', 'Lat')
+holedata <- st_as_sf(holedata) %>% st_set_crs(4326) %>% st_transform(3857)
+
+# Add a segment column so we can group by hole
+holedata$s <- cumsum(c(TRUE,diff(holedata$TIMESTAMP)>=300))
+tomean <- c('TIMESTAMP', 'surftemp', 'deeptemp', 'deepcond', 'surfcond', 'Corrected.Mean..pCi.L.', 'Quality')
+holeavg <- holedata %>% group_by(s) %>% summarise_at(tomean, mean, na.rm = TRUE)
+holeavg$geometry <- st_centroid(holeavg$geometry)
+
