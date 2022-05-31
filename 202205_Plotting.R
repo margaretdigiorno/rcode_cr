@@ -360,6 +360,7 @@ cond_lhole <- ggplot(ss_l[(!is.na(ss_l$anom_dec)) & (ss_l$month == "2022: April"
   guides(colour = guide_legend(override.aes = list(size=3))) +
   geom_point(data = holeavg_l, aes(x = profdist, y = deepcond, fill = "Hole: Deep"), size = 3, pch = 25, color = "white") + 
   geom_point(data = holeavg_l, aes(x = profdist, y = surfcond, fill = 'Hole: Surface'), size = 3, pch = 25, color = "white")+
+  geom_vline(data = allmax[(allmax$month == "2022: April") & (allmax$side == "Left"),], aes(xintercept = profdist))+
   scale_color_manual(values = c("Deep Background" = "black", "Deep Anomaly" = "red", 
                                 "Surface Background" = "gray", "Surface Anomaly" = "coral")) + 
   scale_fill_manual(values = c("Hole: Deep" = "black", "Hole: Surface" = "gray"))
@@ -368,6 +369,7 @@ cond_rhole <- ggplot(ss_r[(!is.na(ss_r$anom_dec)) & (ss_r$month == "2022: April"
   geom_point(aes(x=profdist, y = deepcond, color = anom_dec), size = ptsize)+ ylim(125,155)+
   labs(x =  "Distance Along Profile (km)", y = "Specific Conductance (us/cm)", title = "Right Shore Holes: April 2022", color = "", fill = "") + 
   guides(colour = guide_legend(override.aes = list(size=3))) +
+  geom_vline(data = allmax[(allmax$month == "2022: April") & (allmax$side == "Right"),], aes(xintercept = profdist))+
   geom_point(data = holeavg_r, aes(x = profdist, y = deepcond, fill = "Hole: Deep"), size = 3, pch = 25, color = "white") + 
   geom_point(data = holeavg_r, aes(x = profdist, y = surfcond, fill = 'Hole: Surface'), size = 3, pch = 25, color = "white")+
   scale_color_manual(values = c("Deep Background" = "black", "Deep Anomaly" = "red", 
@@ -378,6 +380,7 @@ temp_lhole <- ggplot(ss_l[(!is.na(ss_l$anom_dec)) & (ss_l$month == "2022: April"
   geom_point(aes(x=profdist, y = deeptemp, color = anom_dtemp), size = ptsize) +
   labs(x =  "Distance Along Profile (km)", y = "Temperature (C)", color = "", fill = "") +
   guides(colour = guide_legend(override.aes = list(size=3))) + ylim(6,8)+
+  geom_vline(data = allmax[(allmax$month == "2022: April") & (allmax$side == "Left"),], aes(xintercept = profdist))+
   geom_point(data = holeavg_l, aes(x = profdist, y = deeptemp, fill = "Hole: Deep"), size = 3, pch = 25, color = "white") + 
   geom_point(data = holeavg_l, aes(x = profdist, y = surftemp, fill = 'Hole: Surface'), size = 3, pch = 25, color = "white")+
   scale_color_manual(values = c("Deep Background" = "black", "Deep Anomaly" = "red", 
@@ -389,6 +392,7 @@ temp_rhole <- ggplot(ss_r[(!is.na(ss_r$anom_dec)) & (ss_r$month == "2022: April"
   geom_point(aes(x=profdist, y = deeptemp, color = anom_dtemp), size = ptsize) +
   labs(x =  "Distance Along Profile (km)", y = "Temperature (C)", color = "", fill = "") +
   guides(colour = guide_legend(override.aes = list(size=3))) + ylim(6,8)+
+  geom_vline(data = allmax[(allmax$month == "2022: April") & (allmax$side == "Right"),], aes(xintercept = profdist))+
   geom_point(data = holeavg_r, aes(x = profdist, y = deeptemp, fill = "Hole: Deep"), size = 3, pch = 25, color = "white") + 
   geom_point(data = holeavg_r, aes(x = profdist, y = surftemp, fill = 'Hole: Surface'), size = 3, pch = 25, color = "white")+
   scale_color_manual(values = c("Deep Background" = "black", "Deep Anomaly" = "red", 
@@ -400,6 +404,7 @@ ggsave('leftholes.png', plot = ggarrange(cond_lhole, temp_lhole, common.legend =
 ggsave('rightholes.png', plot = ggarrange(cond_rhole, temp_rhole, common.legend = T, ncol = 1, legend = "right"), width = 14, height = 6, units = 'in')
 
 #### Add radon as a second axis to the profile dist vs temp/spc plots ####
+
 # Bind the hole radons so they can get plotted in the facets (add month for faceting)
   # Left profile
 holeavg_l$month <- "2022: April"
@@ -409,8 +414,6 @@ holeavg_l[setdiff(names(ss_l), names(holeavg_l))] <- NA
 ss_l_rn <- rbind(ss_l, holeavg_l)
 ss_l_rn <- ss_l_rn[(!is.na(ss_l_rn$Corrected.Mean..pCi.L.)) & (ss_l_rn$Quality == 1),]
 
-#%>% drop_na(deepcond) %>% drop_na(surfcond)
-#ss_l_rn <- ss_l_rn[(ss_l_rn$deepcond %>% between(120,175))& (ss_l_rn$surfcond %>% between(120,175)) & (!is.na(ss_l_rn$anom_dec)),]
 
   # Right profile
 holeavg_r$month <- "2022: April"
@@ -491,4 +494,57 @@ ggsave('rn_feb_r.png', plot = rn_feb_r, width = 8, height = 12, units = 'in')
 ggsave('rn_jul_r.png', plot = rn_jul_r, width = 8, height = 12, units = 'in')
 ggsave('rn_apr_r.png', plot = rn_apr_r, width = 8, height = 12, units = 'in')
 
-#### Load Geophysical Data ####
+#### Geophysical Data ####
+
+# Load data
+geophys = list.files(path = "Data/floatem_inversions/")
+geophys = paste0('Data/floatem_inversions/', geophys)
+gp <- lapply(geophys, read.table, header = T)
+
+# Make data spatial,transform to 3857, and make it spatial again
+apr_l_gp <- data.frame(gp[1])
+coordinates(apr_l_gp) <-  ~UTMX+UTMY
+apr_l_gp <- apr_l_gp %>% st_as_sf() %>% st_set_crs(32611) %>% st_transform(3857) %>% as_Spatial()
+slot(apr_l_gp, "proj4string") <- epsg3857
+
+apr_r_gp <- data.frame(gp[2])
+coordinates(apr_r_gp) <-  ~UTMX+UTMY
+apr_r_gp <- apr_r_gp %>% st_as_sf() %>% st_set_crs(32611) %>% st_transform(3857) %>% as_Spatial()
+slot(apr_r_gp, "proj4string") <- epsg3857
+
+jul_l_gp <- data.frame(gp[3])
+coordinates(jul_l_gp) <-  ~UTMX+UTMY
+jul_l_gp <- jul_l_gp %>% st_as_sf() %>% st_set_crs(32611) %>% st_transform(3857) %>% as_Spatial()
+slot(jul_l_gp, "proj4string") <- epsg3857
+
+jul_r_gp <- data.frame(gp[4])
+coordinates(jul_r_gp) <-  ~UTMX+UTMY
+jul_r_gp <- jul_r_gp %>% st_as_sf() %>% st_set_crs(32611) %>% st_transform(3857) %>% as_Spatial()
+slot(jul_r_gp, "proj4string") <- epsg3857
+
+gp <- list(apr_l_gp, apr_r_gp, jul_l_gp, jul_r_gp)
+
+# Snap to profiles
+for (i in 1:length(gp)){
+  # save the original coordinates
+  gp[[i]]$x.orig <- coordinates(gp[[i]])[,1]
+  gp[[i]]$y.orig <- coordinates(gp[[i]])[,2]
+  
+  # snap data to the profiles (if i is even right else left)
+  if (i %% 2 == 0){
+    gp[[i]]$profdist <- gProject(rightprof, gp[[i]])
+    gp[[i]] <- cbind(gp[[i]]@data, gInterpolate(rightprof, gp[[i]]$profdist))
+  } else {
+    gp[[i]]$profdist <- gProject(leftprof, gp[[i]])
+    gp[[i]] <- cbind(gp[[i]]@data, gInterpolate(leftprof, gp[[i]]$profdist))
+  }
+  
+  gp[[i]]$profdist <- gp[[i]]$profdist/1000
+  
+  # make the data frame sf 
+  coordinates(gp[[i]]) <- ~x+y
+  gp[[i]] <- gp[[i]] %>% st_as_sf() %>% st_set_crs(epsg3857)
+}
+
+
+
