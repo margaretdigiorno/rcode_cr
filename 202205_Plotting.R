@@ -10,6 +10,7 @@ library(rgeos)
 library(basemaps)
 library(reshape2)
 library(facetscales)
+library(ggpubr)
 
 #### Load Data ####
 slopefiles = list.files(path = "Data/WQ_Slopes", pattern = "V2")
@@ -68,7 +69,7 @@ anoms_timeseries <- function(df, month){
       top=textGrob(paste0(month,' ', i)),
       ncol = 1
     )
-    ggsave(paste0(month, '_', i,'.png'), plot = plotted, width = 10.5, height = 8, units = 'in')
+    #ggsave(paste0(month, '_', i,'.png'), plot = plotted, width = 10.5, height = 8, units = 'in')
   }
 }
 
@@ -204,11 +205,90 @@ basemap_ggplot(areaext)+geom_sf(data = st_crop(crpoly, areaext), fill = 'gray', 
   ggtitle("Profile Distances")+labs(color="", x="",y="")+ guides(colour = guide_legend(override.aes = list(size=5)))
 #ggsave('markermap.png', width = 6, height = 4, units = 'in')
 
-#### Plot EC/Temp vs. Profile Distance ####
+#### Average deep hole data to single point for each ####
+
+# Load data and convert timestamp class
+holedata <- read.csv("Data/aprholes_inwater_cleandata.csv")
+holedata$TIMESTAMP <- as_datetime(holedata$TIMESTAMP, tz = "America/Los_Angeles")
+coordinates(holedata) <- c('Lon', 'Lat')
+holedata <- st_as_sf(holedata) %>% st_set_crs(4326) %>% st_transform(3857)
+
+# Look at the deep data (can change column to see other attributes)
+# We might want to think about selecting times right around the sample time since the sensors were in the water
+# longer than we were over each hole (but they look relatively consistent so leaving it for now)
+tm_shape(holedata) +
+  tm_dots("deeptemp", style = "cont", palette = "viridis") +
+  tm_facets(by = "s")
+
+# Add a segment column so we can group by hole
+holedata$s <- cumsum(c(TRUE,diff(holedata$TIMESTAMP)>=300))
+
+
+# List the columns that we want to average
+tomean <- c('TIMESTAMP', 'surftemp', 'deeptemp', 'deepcond', 'surfcond', 'Corrected.Mean..pCi.L.', 'Quality')
+
+# Group by hole number and summarise using mean/removing NAs
+holeavg <- holedata %>% group_by(s) %>% summarise_at(tomean, mean, na.rm = TRUE)
+
+# Find the centroid of all the points for each hole
+holeavg$geometry <- st_centroid(holeavg$geometry)
+
+# Sort the deep hole data by whether it's closer to the left or right side
+holeavg$side <- st_nearest_feature(holeavg, profs)
+
+holeavg_l <- filter(holeavg, side == 1)
+holeavg_l$side <- "left"
+holeavg_l <- as_Spatial(holeavg_l)
+slot(holeavg_l, "proj4string") <- epsg3857
+
+holeavg_r <- filter(holeavg, side == 2)
+holeavg_r$side <- "right"
+holeavg_r <- as_Spatial(holeavg_r)
+slot(holeavg_r, "proj4string") <- epsg3857
+
+# Save the original coordinates
+holeavg_l$x.orig <- coordinates(holeavg_l)[,1]
+holeavg_l$y.orig <- coordinates(holeavg_l)[,2]
+holeavg_r$x.orig <- coordinates(holeavg_r)[,1]
+holeavg_r$y.orig <- coordinates(holeavg_r)[,2]
+
+# Snap hole data to profiles
+holeavg_l$profdist <- gProject(leftprof, holeavg_l)
+holeavg_l <- cbind(holeavg_l@data, gInterpolate(leftprof, holeavg_l$profdist))
+
+holeavg_r$profdist <- gProject(rightprof, holeavg_r)
+holeavg_r <- cbind(holeavg_r@data, gInterpolate(rightprof, holeavg_r$profdist))
+
+holeavg_r$profdist <- holeavg_r$profdist/1000
+holeavg_l$profdist <- holeavg_l$profdist/1000
+
+# Make the hole dfs SF
+coordinates(holeavg_l) <- ~x+y
+coordinates(holeavg_r) <- ~x+y
+holeavg_l <- holeavg_l %>% st_as_sf() %>% st_set_crs(epsg3857)
+holeavg_r <- holeavg_r %>% st_as_sf() %>% st_set_crs(epsg3857)
+
+#### Locations for vlines ####
+# We want to add vertical lines to the plots so we can see which data was collected on a different day
+leftmax <- st_drop_geometry(ss_l) %>% group_by(month, day(TIMESTAMP)) %>% summarise(max = max(TIMESTAMP))
+leftmax$side <- "Left"
+leftmax$profdist <- NA
+for (i in 1:nrow(leftmax)){
+  leftmax[i, 'profdist'] <- ss_l[ss_l$TIMESTAMP == leftmax$max[i],]$profdist
+}
+rightmax <- st_drop_geometry(ss_r) %>% group_by(month, day(TIMESTAMP)) %>% summarise(max = max(TIMESTAMP))
+rightmax$side <- "Right"
+rightmax$profdist <- 0.00
+for (i in 1:nrow(rightmax)){
+  rightmax[i, 'profdist'] <- ss_r[ss_r$TIMESTAMP == rightmax$max[i],]$profdist
+}
+allmax <- rbind(leftmax, rightmax)
+
+#### EC/Temp vs. Profile Distance (All Months) ####
 
 # All dfs need the same number of columns so that we can use facets
 names <- colnames(alldata[[3]])
-alldata <- lapply(alldata, select, names)
+alldata <- lapply(alldata, select, all_of(names))
 
 # Make an empty dataframe and add all the data to it
 combined <- data.frame()
@@ -223,7 +303,7 @@ levels(combined$month) <- c('2021: February', '2021: July', '2022: April')
 
 # Keep just the columns that we need for plotting
 ss <- select(combined, TIMESTAMP, deepcond, surfcond, deeptemp, surftemp, anom_dtemp, anom_stemp, 
-             anom_dec, anom_sec, Corrected.Mean..pCi.L., profdist, month, side, geometry)
+             anom_dec, anom_sec, Corrected.Mean..pCi.L., Quality, profdist, month, side, geometry)
 
 # Make separate left/right data frames
 ss_l <- ss[ss$side == "left",]
@@ -245,7 +325,7 @@ cond_r <- ggplot(ss_r[!is.na(ss_r$anom_dec),]) + geom_point(aes(x=profdist, y = 
                                 "Surface Background" = "gray", "Surface Anomaly" = "coral"))+
   labs(x =  "Distance Along Profile (km)", y = "Specific Conductance (us/cm)", color = "", title = "Right Shore") + 
   facet_grid(month ~.)+ guides(colour = guide_legend(override.aes = list(size=3)))
-ggsave('cond_r.png', plot = cond_r, width = 14, height = 8, units = 'in')
+#ggsave('cond_r.png', plot = cond_r, width = 14, height = 8, units = 'in')
 
 # Plot and save temp vs profile distance for left and right
   # Individually specify scales to give each facet the same magnitude
@@ -271,17 +351,144 @@ temp_r <- ggplot(ss_r[!is.na(ss_r$anom_dtemp),]) + geom_point(aes(x=profdist, y 
   facet_grid_sc(month ~., scales = list(y = scales_y)) + guides(colour = guide_legend(override.aes = list(size=3)))
 ggsave('temp_r.png', plot = temp_r, width = 14, height = 8, units = 'in')
 
-#### Average deep hole data to single point for each ####
+#### Plot SpC/Temp vs Prof Dist with Deep Holes (April) ####
 
-# Load data and convert timestamp class
-holedata <- read.csv("Data/aprholes_inwater_cleandata.csv")
-holedata$TIMESTAMP <- as_datetime(holedata$TIMESTAMP, tz = "America/Los_Angeles")
-coordinates(holedata) <- c('Lon', 'Lat')
-holedata <- st_as_sf(holedata) %>% st_set_crs(4326) %>% st_transform(3857)
+# Make the plots for each side/analyte
+cond_lhole <- ggplot(ss_l[(!is.na(ss_l$anom_dec)) & (ss_l$month == "2022: April"),]) + geom_point(aes(x=profdist, y = surfcond, color = anom_sec), size = ptsize)+ 
+  geom_point(aes(x=profdist, y = deepcond, color = anom_dec), size = ptsize)+ ylim(125,155)+
+  labs(x =  "Distance Along Profile (km)", y = "Specific Conductance (us/cm)", title = "Left Shore Holes: April 2022", color = "", fill = "") + 
+  guides(colour = guide_legend(override.aes = list(size=3))) +
+  geom_point(data = holeavg_l, aes(x = profdist, y = deepcond, fill = "Hole: Deep"), size = 3, pch = 25, color = "white") + 
+  geom_point(data = holeavg_l, aes(x = profdist, y = surfcond, fill = 'Hole: Surface'), size = 3, pch = 25, color = "white")+
+  scale_color_manual(values = c("Deep Background" = "black", "Deep Anomaly" = "red", 
+                                "Surface Background" = "gray", "Surface Anomaly" = "coral")) + 
+  scale_fill_manual(values = c("Hole: Deep" = "black", "Hole: Surface" = "gray"))
 
-# Add a segment column so we can group by hole
-holedata$s <- cumsum(c(TRUE,diff(holedata$TIMESTAMP)>=300))
-tomean <- c('TIMESTAMP', 'surftemp', 'deeptemp', 'deepcond', 'surfcond', 'Corrected.Mean..pCi.L.', 'Quality')
-holeavg <- holedata %>% group_by(s) %>% summarise_at(tomean, mean, na.rm = TRUE)
-holeavg$geometry <- st_centroid(holeavg$geometry)
+cond_rhole <- ggplot(ss_r[(!is.na(ss_r$anom_dec)) & (ss_r$month == "2022: April"),]) + geom_point(aes(x=profdist, y = surfcond, color = anom_sec), size = ptsize)+ 
+  geom_point(aes(x=profdist, y = deepcond, color = anom_dec), size = ptsize)+ ylim(125,155)+
+  labs(x =  "Distance Along Profile (km)", y = "Specific Conductance (us/cm)", title = "Right Shore Holes: April 2022", color = "", fill = "") + 
+  guides(colour = guide_legend(override.aes = list(size=3))) +
+  geom_point(data = holeavg_r, aes(x = profdist, y = deepcond, fill = "Hole: Deep"), size = 3, pch = 25, color = "white") + 
+  geom_point(data = holeavg_r, aes(x = profdist, y = surfcond, fill = 'Hole: Surface'), size = 3, pch = 25, color = "white")+
+  scale_color_manual(values = c("Deep Background" = "black", "Deep Anomaly" = "red", 
+                                "Surface Background" = "gray", "Surface Anomaly" = "coral")) + 
+  scale_fill_manual(values = c("Hole: Deep" = "black", "Hole: Surface" = "gray"))
 
+temp_lhole <- ggplot(ss_l[(!is.na(ss_l$anom_dec)) & (ss_l$month == "2022: April"),])+ geom_point(aes(x=profdist, y = surftemp, color = anom_stemp), size = ptsize)+
+  geom_point(aes(x=profdist, y = deeptemp, color = anom_dtemp), size = ptsize) +
+  labs(x =  "Distance Along Profile (km)", y = "Temperature (C)", color = "", fill = "") +
+  guides(colour = guide_legend(override.aes = list(size=3))) + ylim(6,8)+
+  geom_point(data = holeavg_l, aes(x = profdist, y = deeptemp, fill = "Hole: Deep"), size = 3, pch = 25, color = "white") + 
+  geom_point(data = holeavg_l, aes(x = profdist, y = surftemp, fill = 'Hole: Surface'), size = 3, pch = 25, color = "white")+
+  scale_color_manual(values = c("Deep Background" = "black", "Deep Anomaly" = "red", 
+                                "Surface Background" = "gray", "Surface Anomaly" = "coral")) + 
+  scale_fill_manual(values = c("Hole: Deep" = "black", "Hole: Surface" = "gray"))
+
+
+temp_rhole <- ggplot(ss_r[(!is.na(ss_r$anom_dec)) & (ss_r$month == "2022: April"),])+ geom_point(aes(x=profdist, y = surftemp, color = anom_stemp), size = ptsize)+
+  geom_point(aes(x=profdist, y = deeptemp, color = anom_dtemp), size = ptsize) +
+  labs(x =  "Distance Along Profile (km)", y = "Temperature (C)", color = "", fill = "") +
+  guides(colour = guide_legend(override.aes = list(size=3))) + ylim(6,8)+
+  geom_point(data = holeavg_r, aes(x = profdist, y = deeptemp, fill = "Hole: Deep"), size = 3, pch = 25, color = "white") + 
+  geom_point(data = holeavg_r, aes(x = profdist, y = surftemp, fill = 'Hole: Surface'), size = 3, pch = 25, color = "white")+
+  scale_color_manual(values = c("Deep Background" = "black", "Deep Anomaly" = "red", 
+                                "Surface Background" = "gray", "Surface Anomaly" = "coral")) + 
+  scale_fill_manual(values = c("Hole: Deep" = "black", "Hole: Surface" = "gray"))
+
+# Arrange and save the plots
+ggsave('leftholes.png', plot = ggarrange(cond_lhole, temp_lhole, common.legend = T, ncol = 1, legend = "right"), width = 14, height = 6, units = 'in')
+ggsave('rightholes.png', plot = ggarrange(cond_rhole, temp_rhole, common.legend = T, ncol = 1, legend = "right"), width = 14, height = 6, units = 'in')
+
+#### Add radon as a second axis to the profile dist vs temp/spc plots ####
+# Bind the hole radons so they can get plotted in the facets (add month for faceting)
+  # Left profile
+holeavg_l$month <- "2022: April"
+holeavg_l$anom_dec <- "Deep Anomaly"
+ss_l[setdiff(names(holeavg_l), names(ss_l))] <- NA
+holeavg_l[setdiff(names(ss_l), names(holeavg_l))] <- NA
+ss_l_rn <- rbind(ss_l, holeavg_l)
+ss_l_rn <- ss_l_rn[(!is.na(ss_l_rn$Corrected.Mean..pCi.L.)) & (ss_l_rn$Quality == 1),]
+
+#%>% drop_na(deepcond) %>% drop_na(surfcond)
+#ss_l_rn <- ss_l_rn[(ss_l_rn$deepcond %>% between(120,175))& (ss_l_rn$surfcond %>% between(120,175)) & (!is.na(ss_l_rn$anom_dec)),]
+
+  # Right profile
+holeavg_r$month <- "2022: April"
+holeavg_r$anom_dec <- "Deep Anomaly"
+ss_r[setdiff(names(holeavg_r), names(ss_r))] <- NA
+holeavg_r[setdiff(names(ss_r), names(holeavg_r))] <- NA
+ss_r_rn <- rbind(ss_r, holeavg_r)
+ss_r_rn <- ss_r_rn[(!is.na(ss_r_rn$Corrected.Mean..pCi.L.)) & (ss_r_rn$Quality == 1),]
+
+rnplot <- function(m, side, side_l){
+  ggplot(side[side$month == m,], aes(x = profdist)) + geom_point(aes(y = Corrected.Mean..pCi.L.)) +
+    labs(x = "", y = "Rn 222 (pCi/L)", title = paste0(m, ' (', side_l,')')) + ylim(0,35) + xlim(0,115)
+}
+
+rnplot_l <- lapply(unique(ss_l_rn$month), rnplot, ss_l_rn, "Left")
+rnplot_r <- lapply(unique(ss_r_rn$month), rnplot, ss_r_rn, "Right")
+
+condplot <- function(m, side, side_l){
+  ggplot(side[(!is.na(side$anom_dec)) & (side$month == m),]) + geom_point(aes(x=profdist, y = surfcond, color = anom_sec), size = ptsize)+ 
+    geom_point(aes(x=profdist, y = deepcond, color = anom_dec), size = ptsize)+ ylim(125,155)+
+    labs(x =  "Profile Distance (km)", y = "SpC (us/cm)", color = "") + 
+    guides(colour = guide_legend(override.aes = list(size=3))) +
+    geom_vline(data = allmax[(allmax$month == m) & (allmax$side == side_l),], aes(xintercept = profdist))+
+    scale_color_manual(values = c("Deep Background" = "black", "Deep Anomaly" = "red", 
+                                  "Surface Background" = "gray", "Surface Anomaly" = "coral")) + xlim(0,117)
+  
+}
+
+# Make the specific conductance plots
+cond_l_plot <- lapply(unique(ss_l$month), condplot, ss_l, "Left")
+cond_r_plot <- lapply(unique(ss_r$month), condplot, ss_r, "Right")
+
+# Function for temperature plots
+tempplot <- function(m, side, side_l){
+  ggplot(side[(!is.na(side$anom_dtemp)) & (side$month == m),]) +
+    geom_point(aes(x=profdist, y = surftemp, color = anom_stemp), size = ptsize) +
+    geom_point(aes(x=profdist, y = deeptemp, color = anom_dtemp), size = ptsize) +
+    geom_vline(data = allmax[(allmax$month == m) & (allmax$side == side_l),], aes(xintercept = profdist))+
+    labs(x = "Profile Distance (km)", y = "Temp (C)", color = "") +
+    guides(colour = guide_legend(override.aes = list(size=3))) +
+    scale_color_manual(values = c("Deep Background" = "black", "Deep Anomaly" = "red", 
+                                  "Surface Background" = "gray", "Surface Anomaly" = "coral")) + xlim(0,117) +
+    scales_y[m]
+}
+
+# Make the temperature plots
+temp_l_plot <- lapply(unique(ss_l$month), tempplot, ss_l, "Left")
+temp_r_plot <- lapply(unique(ss_r$month), tempplot, ss_r, "Right")
+
+# Make plots showing radon and specific conductance (or temperature) for all months (to compare)
+rn_cond_l <- ggarrange(rnplot_l[[1]], cond_l_plot[[1]], rnplot_l[[2]], cond_l_plot[[2]], rnplot_l[[3]],  cond_l_plot[[3]], ncol = 1, common.legend = T, legend = "right", heights = c(2,3,2,3,2,3))
+rn_cond_r <- ggarrange(rnplot_r[[1]], cond_r_plot[[1]], rnplot_r[[2]], cond_r_plot[[2]], rnplot_r[[3]],  cond_r_plot[[3]], ncol = 1, common.legend = T, legend = "right", heights = c(2,3,2,3,2,3))
+
+ggsave('rn_cond_l.png', plot = rn_cond_l, width = 8, height = 12, units = 'in')
+ggsave('rn_cond_r.png', plot = rn_cond_r, width = 8, height = 12, units = "in")
+
+rn_temp_l <- ggarrange(rnplot_l[[1]], temp_l_plot[[1]], rnplot_l[[2]], temp_l_plot[[2]], rnplot_l[[3]],  temp_l_plot[[3]], ncol = 1, common.legend = T, legend = "right", heights = c(2,3,2,3,2,3))
+rn_temp_r <- ggarrange(rnplot_r[[1]], temp_r_plot[[1]], rnplot_r[[2]], temp_r_plot[[2]], rnplot_r[[3]],  temp_r_plot[[3]], ncol = 1, common.legend = T, legend = "right", heights = c(2,3,2,3,2,3))
+
+ggsave('rn_temp_l.png', plot = rn_temp_l, width = 8, height = 12, units = 'in')
+ggsave('rn_temp_r.png', plot = rn_temp_r, width = 8, height = 12, units = 'in')
+
+# Make plots showing radon and specific conductance and temperature (one month at a time)
+
+rn_feb_l <- ggarrange(rnplot_l[[1]], temp_l_plot[[1]], cond_l_plot[[1]], ncol = 1, common.legend = T, legend = "right", heights = c(2,3,3))
+rn_jul_l <- ggarrange(rnplot_l[[2]], temp_l_plot[[2]], cond_l_plot[[2]], ncol = 1, common.legend = T, legend = "right", heights = c(2,3,3))
+rn_apr_l <- ggarrange(rnplot_l[[3]], temp_l_plot[[3]], cond_l_plot[[3]], ncol = 1, common.legend = T, legend = "right", heights = c(2,3,3))
+
+ggsave('rn_feb_l.png', plot = rn_feb_l, width = 8, height = 12, units = 'in')
+ggsave('rn_jul_l.png', plot = rn_jul_l, width = 8, height = 12, units = 'in')
+ggsave('rn_apr_l.png', plot = rn_apr_l, width = 8, height = 12, units = 'in')
+
+rn_feb_r <- ggarrange(rnplot_r[[1]], temp_r_plot[[1]], cond_r_plot[[1]], ncol = 1, common.legend = T, legend = "right", heights = c(2,3,3))
+rn_jul_r <- ggarrange(rnplot_r[[2]], temp_r_plot[[2]], cond_r_plot[[2]], ncol = 1, common.legend = T, legend = "right", heights = c(2,3,3))
+rn_apr_r <- ggarrange(rnplot_r[[3]], temp_r_plot[[3]], cond_r_plot[[3]], ncol = 1, common.legend = T, legend = "right", heights = c(2,3,3))
+
+ggsave('rn_feb_r.png', plot = rn_feb_r, width = 8, height = 12, units = 'in')
+ggsave('rn_jul_r.png', plot = rn_jul_r, width = 8, height = 12, units = 'in')
+ggsave('rn_apr_r.png', plot = rn_apr_r, width = 8, height = 12, units = 'in')
+
+#### Load Geophysical Data ####
