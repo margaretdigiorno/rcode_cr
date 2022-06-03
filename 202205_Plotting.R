@@ -11,6 +11,9 @@ library(basemaps)
 library(reshape2)
 library(facetscales)
 library(ggpubr)
+library(scales)
+library(patchwork)
+library(geosphere)
 
 #### Load Data ####
 slopefiles = list.files(path = "Data/WQ_Slopes", pattern = "V2")
@@ -213,16 +216,15 @@ holedata$TIMESTAMP <- as_datetime(holedata$TIMESTAMP, tz = "America/Los_Angeles"
 coordinates(holedata) <- c('Lon', 'Lat')
 holedata <- st_as_sf(holedata) %>% st_set_crs(4326) %>% st_transform(3857)
 
+# Add a segment column so we can group by hole
+holedata$s <- cumsum(c(TRUE,diff(holedata$TIMESTAMP)>=300))
+
 # Look at the deep data (can change column to see other attributes)
 # We might want to think about selecting times right around the sample time since the sensors were in the water
 # longer than we were over each hole (but they look relatively consistent so leaving it for now)
 tm_shape(holedata) +
   tm_dots("deeptemp", style = "cont", palette = "viridis") +
   tm_facets(by = "s")
-
-# Add a segment column so we can group by hole
-holedata$s <- cumsum(c(TRUE,diff(holedata$TIMESTAMP)>=300))
-
 
 # List the columns that we want to average
 tomean <- c('TIMESTAMP', 'surftemp', 'deeptemp', 'deepcond', 'surfcond', 'Corrected.Mean..pCi.L.', 'Quality')
@@ -268,23 +270,7 @@ coordinates(holeavg_r) <- ~x+y
 holeavg_l <- holeavg_l %>% st_as_sf() %>% st_set_crs(epsg3857)
 holeavg_r <- holeavg_r %>% st_as_sf() %>% st_set_crs(epsg3857)
 
-#### Locations for vlines ####
-# We want to add vertical lines to the plots so we can see which data was collected on a different day
-leftmax <- st_drop_geometry(ss_l) %>% group_by(month, day(TIMESTAMP)) %>% summarise(max = max(TIMESTAMP))
-leftmax$side <- "Left"
-leftmax$profdist <- NA
-for (i in 1:nrow(leftmax)){
-  leftmax[i, 'profdist'] <- ss_l[ss_l$TIMESTAMP == leftmax$max[i],]$profdist
-}
-rightmax <- st_drop_geometry(ss_r) %>% group_by(month, day(TIMESTAMP)) %>% summarise(max = max(TIMESTAMP))
-rightmax$side <- "Right"
-rightmax$profdist <- 0.00
-for (i in 1:nrow(rightmax)){
-  rightmax[i, 'profdist'] <- ss_r[ss_r$TIMESTAMP == rightmax$max[i],]$profdist
-}
-allmax <- rbind(leftmax, rightmax)
-
-#### EC/Temp vs. Profile Distance (All Months) ####
+#### Prepare data for faceting ####
 
 # All dfs need the same number of columns so that we can use facets
 names <- colnames(alldata[[3]])
@@ -309,6 +295,25 @@ ss <- select(combined, TIMESTAMP, deepcond, surfcond, deeptemp, surftemp, anom_d
 ss_l <- ss[ss$side == "left",]
 ss_r <- ss[ss$side == "right",]
 ptsize <- 0.5
+
+#### Locations for vlines ####
+# We want to add vertical lines to the plots so we can see which data was collected on a different day
+leftmax <- st_drop_geometry(ss_l) %>% group_by(month, day(TIMESTAMP)) %>% summarise(max = max(TIMESTAMP))
+leftmax$side <- "Left"
+leftmax$profdist <- NA
+for (i in 1:nrow(leftmax)){
+  leftmax[i, 'profdist'] <- ss_l[ss_l$TIMESTAMP == leftmax$max[i],]$profdist
+}
+rightmax <- st_drop_geometry(ss_r) %>% group_by(month, day(TIMESTAMP)) %>% summarise(max = max(TIMESTAMP))
+rightmax$side <- "Right"
+rightmax$profdist <- 0.00
+for (i in 1:nrow(rightmax)){
+  rightmax[i, 'profdist'] <- ss_r[ss_r$TIMESTAMP == rightmax$max[i],]$profdist
+}
+
+allmax <- rbind(leftmax, rightmax)
+
+#### EC/Temp vs. Profile Distance (All Months) ####
 
 # Plot and save spc v profile distance for left and right
 cond_l <- ggplot(ss_l[!is.na(ss_l$anom_dec),]) + geom_point(aes(x=profdist, y = surfcond, color = anom_sec), size = ptsize)+ 
@@ -386,7 +391,6 @@ temp_lhole <- ggplot(ss_l[(!is.na(ss_l$anom_dec)) & (ss_l$month == "2022: April"
   scale_color_manual(values = c("Deep Background" = "black", "Deep Anomaly" = "red", 
                                 "Surface Background" = "gray", "Surface Anomaly" = "coral")) + 
   scale_fill_manual(values = c("Hole: Deep" = "black", "Hole: Surface" = "gray"))
-
 
 temp_rhole <- ggplot(ss_r[(!is.na(ss_r$anom_dec)) & (ss_r$month == "2022: April"),])+ geom_point(aes(x=profdist, y = surftemp, color = anom_stemp), size = ptsize)+
   geom_point(aes(x=profdist, y = deeptemp, color = anom_dtemp), size = ptsize) +
@@ -482,17 +486,18 @@ rn_feb_l <- ggarrange(rnplot_l[[1]], temp_l_plot[[1]], cond_l_plot[[1]], ncol = 
 rn_jul_l <- ggarrange(rnplot_l[[2]], temp_l_plot[[2]], cond_l_plot[[2]], ncol = 1, common.legend = T, legend = "right", heights = c(2,3,3))
 rn_apr_l <- ggarrange(rnplot_l[[3]], temp_l_plot[[3]], cond_l_plot[[3]], ncol = 1, common.legend = T, legend = "right", heights = c(2,3,3))
 
-ggsave('rn_feb_l.png', plot = rn_feb_l, width = 8, height = 12, units = 'in')
-ggsave('rn_jul_l.png', plot = rn_jul_l, width = 8, height = 12, units = 'in')
-ggsave('rn_apr_l.png', plot = rn_apr_l, width = 8, height = 12, units = 'in')
+ggsave('rn_feb_l.png', plot = rn_feb_l, width = 12, height = 6, units = 'in')
+ggsave('rn_jul_l.png', plot = rn_jul_l, width = 12, height = 6, units = 'in')
+ggsave('rn_apr_l.png', plot = rn_apr_l, width = 12, height = 6, units = 'in')
 
 rn_feb_r <- ggarrange(rnplot_r[[1]], temp_r_plot[[1]], cond_r_plot[[1]], ncol = 1, common.legend = T, legend = "right", heights = c(2,3,3))
 rn_jul_r <- ggarrange(rnplot_r[[2]], temp_r_plot[[2]], cond_r_plot[[2]], ncol = 1, common.legend = T, legend = "right", heights = c(2,3,3))
 rn_apr_r <- ggarrange(rnplot_r[[3]], temp_r_plot[[3]], cond_r_plot[[3]], ncol = 1, common.legend = T, legend = "right", heights = c(2,3,3))
 
-ggsave('rn_feb_r.png', plot = rn_feb_r, width = 8, height = 12, units = 'in')
-ggsave('rn_jul_r.png', plot = rn_jul_r, width = 8, height = 12, units = 'in')
-ggsave('rn_apr_r.png', plot = rn_apr_r, width = 8, height = 12, units = 'in')
+ggsave('rn_feb_r.png', plot = rn_feb_r, width = 12, height = 6, units = 'in')
+ggsave('rn_jul_r.png', plot = rn_jul_r, width = 12, height = 6, units = 'in')
+ggsave('rn_apr_r.png', plot = rn_apr_r, width = 12, height = 6, units = 'in')
+
 
 #### Geophysical Data ####
 
@@ -501,31 +506,14 @@ geophys = list.files(path = "Data/floatem_inversions/")
 geophys = paste0('Data/floatem_inversions/', geophys)
 gp <- lapply(geophys, read.table, header = T)
 
-# Make data spatial,transform to 3857, and make it spatial again
-apr_l_gp <- data.frame(gp[1])
-coordinates(apr_l_gp) <-  ~UTMX+UTMY
-apr_l_gp <- apr_l_gp %>% st_as_sf() %>% st_set_crs(32611) %>% st_transform(3857) %>% as_Spatial()
-slot(apr_l_gp, "proj4string") <- epsg3857
+# Transform data and snap to profiles
 
-apr_r_gp <- data.frame(gp[2])
-coordinates(apr_r_gp) <-  ~UTMX+UTMY
-apr_r_gp <- apr_r_gp %>% st_as_sf() %>% st_set_crs(32611) %>% st_transform(3857) %>% as_Spatial()
-slot(apr_r_gp, "proj4string") <- epsg3857
-
-jul_l_gp <- data.frame(gp[3])
-coordinates(jul_l_gp) <-  ~UTMX+UTMY
-jul_l_gp <- jul_l_gp %>% st_as_sf() %>% st_set_crs(32611) %>% st_transform(3857) %>% as_Spatial()
-slot(jul_l_gp, "proj4string") <- epsg3857
-
-jul_r_gp <- data.frame(gp[4])
-coordinates(jul_r_gp) <-  ~UTMX+UTMY
-jul_r_gp <- jul_r_gp %>% st_as_sf() %>% st_set_crs(32611) %>% st_transform(3857) %>% as_Spatial()
-slot(jul_r_gp, "proj4string") <- epsg3857
-
-gp <- list(apr_l_gp, apr_r_gp, jul_l_gp, jul_r_gp)
-
-# Snap to profiles
 for (i in 1:length(gp)){
+  # Make spatial, transform, make spatial again
+  coordinates(gp[[i]]) <- ~UTMX+UTMY
+  gp[[i]] <- gp[[i]] %>% st_as_sf() %>% st_set_crs(32611) %>% st_transform(3857) %>% as_Spatial()
+  slot(gp[[i]], "proj4string") <- epsg3857
+  
   # save the original coordinates
   gp[[i]]$x.orig <- coordinates(gp[[i]])[,1]
   gp[[i]]$y.orig <- coordinates(gp[[i]])[,2]
@@ -544,6 +532,74 @@ for (i in 1:length(gp)){
   # make the data frame sf 
   coordinates(gp[[i]]) <- ~x+y
   gp[[i]] <- gp[[i]] %>% st_as_sf() %>% st_set_crs(epsg3857)
+}
+
+# Add a column of distance between original and snapped geophys locations
+for (i in 1:4){
+  orig <- gp[[i]][,c('x.orig', 'y.orig')] %>% st_drop_geometry()
+  coordinates(orig) <- ~x.orig+y.orig
+  orig <- orig %>% st_as_sf() %>% st_set_crs(3857)
+  gp[[i]]$dist <- st_distance(gp[[i]], orig, by_element = T) %>% as.numeric()
+}
+
+#### Line Plots Comparing Bed/5 m Resistivity ####
+lineplots <- function(df){
+  ggplot(df, aes(x = profdist)) + geom_line(aes(y = RHO_I_2, color = "Layer 2"), lwd = 1) + geom_line(aes(y = mean25, color = "First ~ 5m of Sediment"), lwd =1) +
+    labs(x = "Profile Distance (km)", y = TeX('$\\log_{10}(Resistivity \\; \\Omega \\cdot m)$'), color = "") + 
+    scale_y_continuous(trans = 'log10', limits = c(5,300)) + xlim(0,115)+
+    annotation_logticks(sides = "l") 
+
+}
+
+lines_gp <- lapply(gp, lineplots)
+names <- c('April Left', 'April Right', 'July Left', 'July Right')
+
+for (i in 1:length(lines_gp)){
+  df[[i]] <- df[[i]] %>% rowwise(RECORD) %>%  mutate(mean25 = mean(c(RHO_I_2, RHO_I_3, RHO_I_4, RHO_I_5)))
+  plot <- lines_gp[[i]] + ggtitle(names[i])
+  ggsave(paste0('reslayers_', gsub(" ", "", names[i]),'.png'), plot = plot, width = 14, height = 3, units = 'in')
+}
+
+#### Plot the resistivity data using geom_rect ####
+
+# Set up function to add all of the rectangles (returns the ggplot)
+plotres <- function(df){
+  data <- df[(df$profdist > 0),]
+  data$xmin <- append(0, data$profdist[1:length(data$profdist)-1])
+  scalemin <- quantile((1/as.matrix(st_drop_geometry(select(data, RHO_I_1 : RHO_I_20))))*10000, 0.05)
+  scalemax <- quantile((1/as.matrix(st_drop_geometry(select(data, RHO_I_1 : RHO_I_20))))*10000, 0.95)
+  res <- ggplot(data)
+  for (i in 1:20){
+    above <- filter(data, !!sym(paste0('DEP_BOT_',i)) < DOI_STANDARD)
+    below <- filter(data, !!sym(paste0('DEP_BOT_',i)) > DOI_STANDARD)
+    res <- res + geom_rect(data = above, aes(xmin = xmin, xmax = profdist, 
+                                             ymin = !!sym(paste0('DEP_TOP_',i)),
+                                             ymax = !!sym(paste0('DEP_BOT_',i)),
+                                             fill = ifelse(dist < 500, (1/(!!sym(paste0('RHO_I_',i))))*10000, 'gray'))) +
+      
+                geom_rect(data = below, aes(xmin = xmin, xmax = profdist, 
+                                            ymin = !!sym(paste0('DEP_TOP_',i)),
+                                            ymax = !!sym(paste0('DEP_BOT_',i)),
+                                            fill = (1/(!!sym(paste0('RHO_I_',i))))*10000), alpha = 0.2)
+  }
+  res <- res + scale_y_reverse() + labs(y = "Depth (m)", x = "Profile Distance (km)") +
+    scale_fill_viridis_c('EC (us/cm)', option = 'turbo', trans = "log10", limits = c(scalemin, scalemax), oob = squish)
+  
+  return(res)
+  
+  }
+
+# Apply the function to all of the geophysical data
+ecplots <- lapply(gp, plotres)
+ec_l <- ecplots[c(3,1)]
+ec_r <- ecplots[c(4,2)]
+
+# Combine the resistivity plots with the radon and conductivity data
+for (i in 2:3){
+  plotl <- rnplot_l[[i]]/temp_l_plot[[i]]/cond_l_plot[[i]]/ec_l[[i-1]] + plot_layout(guides = "collect", heights = c(1,1,1,2))
+  plotr <- rnplot_r[[i]]/temp_r_plot[[i]]/cond_r_plot[[i]]/ec_r[[i-1]] + plot_layout(guides = "collect", heights = c(1,1,1,2))
+  ggsave(paste0('wgeophys_l_', i, '.png'), plot = plotl, width = 12, height = 6, units = 'in')
+  ggsave(paste0('wgeophys_r_', i, '.png'), plot = plotr, width = 12, height = 6, units = 'in')
 }
 
 
