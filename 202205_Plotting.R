@@ -407,7 +407,7 @@ temp_rhole <- ggplot(ss_r[(!is.na(ss_r$anom_dec)) & (ss_r$month == "2022: April"
 ggsave('leftholes.png', plot = ggarrange(cond_lhole, temp_lhole, common.legend = T, ncol = 1, legend = "right"), width = 14, height = 6, units = 'in')
 ggsave('rightholes.png', plot = ggarrange(cond_rhole, temp_rhole, common.legend = T, ncol = 1, legend = "right"), width = 14, height = 6, units = 'in')
 
-#### Add radon as a second axis to the profile dist vs temp/spc plots ####
+#### Make plots that include Rn ####
 
 # Bind the hole radons so they can get plotted in the facets (add month for faceting)
   # Left profile
@@ -568,21 +568,24 @@ plotres <- function(df){
   data$xmin <- append(0, data$profdist[1:length(data$profdist)-1])
   scalemin <- quantile((1/as.matrix(st_drop_geometry(select(data, RHO_I_1 : RHO_I_20))))*10000, 0.05)
   scalemax <- quantile((1/as.matrix(st_drop_geometry(select(data, RHO_I_1 : RHO_I_20))))*10000, 0.95)
+  plot <- filter(data, dist < 500)
+  noplot <- filter(data, !(dist < 500))
   res <- ggplot(data)
   for (i in 1:20){
-    above <- filter(data, !!sym(paste0('DEP_BOT_',i)) < DOI_STANDARD)
-    below <- filter(data, !!sym(paste0('DEP_BOT_',i)) > DOI_STANDARD)
+    above <- filter(plot, !!sym(paste0('DEP_BOT_',i)) < DOI_STANDARD)
+    below <- filter(plot, !!sym(paste0('DEP_BOT_',i)) > DOI_STANDARD)
     res <- res + geom_rect(data = above, aes(xmin = xmin, xmax = profdist, 
                                              ymin = !!sym(paste0('DEP_TOP_',i)),
                                              ymax = !!sym(paste0('DEP_BOT_',i)),
-                                             fill = ifelse(dist < 500, (1/(!!sym(paste0('RHO_I_',i))))*10000, 'gray'))) +
+                                             fill = 1/(!!sym(paste0('RHO_I_',i)))*10000)) +
       
                 geom_rect(data = below, aes(xmin = xmin, xmax = profdist, 
                                             ymin = !!sym(paste0('DEP_TOP_',i)),
                                             ymax = !!sym(paste0('DEP_BOT_',i)),
-                                            fill = (1/(!!sym(paste0('RHO_I_',i))))*10000), alpha = 0.2)
+                                            fill = 1/(!!sym(paste0('RHO_I_',i)))*10000), alpha = 0.2)
   }
-  res <- res + scale_y_reverse() + labs(y = "Depth (m)", x = "Profile Distance (km)") +
+  res <- res + geom_rect(data = noplot, aes(xmin = xmin, xmax = profdist, ymin = DEP_TOP_1, ymax = DEP_BOT_20), fill = 'gray')+
+    scale_y_reverse() + labs(y = "Depth (m)", x = "Profile Distance (km)") +
     scale_fill_viridis_c('EC (us/cm)', option = 'turbo', trans = "log10", limits = c(scalemin, scalemax), oob = squish)
   
   return(res)
@@ -603,4 +606,14 @@ for (i in 2:3){
 }
 
 
+#### Add the locations of known surface water inflows  ####
 
+# Load the times of known inflows
+inflowtimes <- readxl::read_excel('Data/surfaceinflowtimes.xlsx', col_names = c('time', 'label'))
+inflowtimes$time <- inflowtimes$time %>% as_datetime() %>% force_tz(tzone = "America/Los_Angeles")
+
+# Find the profile distance of the closest WQ point in time (using df 'ss') for each inflow
+library(data.table)
+setDT(ss)[,join_date := TIMESTAMP]
+setDT(inflowtimes)[,join_date := time]
+joined <- ss[inflowtimes, on = .(join_date), roll = "nearest"]
