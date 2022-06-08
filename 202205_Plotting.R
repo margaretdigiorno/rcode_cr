@@ -12,8 +12,10 @@ library(reshape2)
 library(facetscales)
 library(ggpubr)
 library(scales)
+library(latex2exp)
 library(patchwork)
 library(geosphere)
+library(ggrepel)
 
 #### Load Data ####
 slopefiles = list.files(path = "Data/WQ_Slopes", pattern = "V2")
@@ -184,6 +186,13 @@ for (i in 1:length(alldata)){
   alldata[[i]] <- alldata[[i]] %>% st_as_sf() %>% st_set_crs(epsg3857)
   }
 
+# Add a column of distance between original and snapped wq locations
+for (i in 1:6){
+  orig <- alldata[[i]][,c('x.orig', 'y.orig')] %>% st_drop_geometry()
+  coordinates(orig) <- ~x.orig+y.orig
+  orig <- orig %>% st_as_sf() %>% st_set_crs(3857)
+  alldata[[i]]$dist <- st_distance(alldata[[i]], orig, by_element = T) %>% as.numeric()
+}
 #### Map Marker Points ####
 
 # Create marker points to help match profile with map
@@ -289,7 +298,7 @@ levels(combined$month) <- c('2021: February', '2021: July', '2022: April')
 
 # Keep just the columns that we need for plotting
 ss <- select(combined, TIMESTAMP, deepcond, surfcond, deeptemp, surftemp, anom_dtemp, anom_stemp, 
-             anom_dec, anom_sec, Corrected.Mean..pCi.L., Quality, profdist, month, side, geometry)
+             anom_dec, anom_sec, Corrected.Mean..pCi.L., Quality, profdist, month, side, dist, geometry)
 
 # Make separate left/right data frames
 ss_l <- ss[ss$side == "left",]
@@ -312,6 +321,40 @@ for (i in 1:nrow(rightmax)){
 }
 
 allmax <- rbind(leftmax, rightmax)
+
+# Add the locations of known surface water inflows
+# Load the times of known inflows
+inflowtimes <- readxl::read_excel('Data/surfaceinflowtimes.xlsx', col_names = c('time', 'label'))
+inflowtimes$time <- inflowtimes$time %>% as_datetime() %>% force_tz(tzone = "America/Los_Angeles")
+
+# Find the profile distance of the closest WQ point in time (using df 'ss') for each inflow
+library(data.table)
+setDT(ss)[,join_date := TIMESTAMP]
+setDT(inflowtimes)[,join_date := time]
+joined <- ss[inflowtimes, on = .(join_date), roll = "nearest"]
+
+# Load the .csv of wasteway locations
+wwloc <- st_read('Data/wasteways.csv') %>% st_set_crs(4326) %>% st_transform(3857) %>% as_Spatial()
+
+# Snap wasteway locations to the left profile and calculate prof dist
+wwloc$profdist <- gProject(leftprof, wwloc)
+wwloc <- cbind(wwloc@data, gInterpolate(leftprof, wwloc$profdist))
+wwloc$profdist <- wwloc$profdist/1000
+coordinates(wwloc) <- ~x+y
+
+# Look at the two dataframes (not that many so fine to manually combine)
+wwloc$side <- 'left'
+wwloc <- select(wwloc@data, name, profdist, side) %>% rename(label = name)
+sw_comb <- select(joined, label, profdist, side) %>% rbind(wwloc) %>% arrange(profdist)
+
+# Use observed locations of WWs w/USGS names and remove duplicates
+sw_comb[2, 'label'] <- 'WB10 WW'
+sw_comb[6, 'label'] <- 'PE 16.4 WW'
+sw_comb[8, 'label'] <- 'SW Inflow'
+sw_comb[14, 'label'] <- 'Pasco WW'
+sw_comb[15, 'label'] <- 'Esquatzel WW'
+sw_comb[17, 'label'] <- 'SW Inflow'
+sw_comb <- sw_comb[-c(3, 5, 7, 9, 13, 16, 18),]
 
 #### EC/Temp vs. Profile Distance (All Months) ####
 
@@ -428,21 +471,33 @@ ss_r_rn <- rbind(ss_r, holeavg_r)
 ss_r_rn <- ss_r_rn[(!is.na(ss_r_rn$Corrected.Mean..pCi.L.)) & (ss_r_rn$Quality == 1),]
 
 rnplot <- function(m, side, side_l){
-  ggplot(side[side$month == m,], aes(x = profdist)) + geom_point(aes(y = Corrected.Mean..pCi.L.)) +
-    labs(x = "", y = "Rn 222 (pCi/L)", title = paste0(m, ' (', side_l,')')) + ylim(0,35) + xlim(0,115)
+  rn <- ggplot(side[side$month == m,], aes(x = profdist)) + geom_point(aes(y = Corrected.Mean..pCi.L.)) +
+          geom_vline(data = allmax[(allmax$month == m) & (allmax$side == side_l),], aes(xintercept = profdist, linetype = "End of Day"))+
+          geom_vline(data = sw_comb[sw_comb$side == tolower(side_l)], aes(xintercept = profdist, linetype = "SW Inflow")) +
+          ylim(0,35) + xlim(0,117) + scale_linetype_manual(values = c(1,2)) +
+          labs(x = "", y = "Rn 222 (pCi/L)", title = paste0(m, ' (', side_l,')'), linetype = "") +
+          theme(legend.position="none")
+  if (side_l == "Left"){
+    return(rn + ggtext::geom_richtext(data = filter(sw_comb[sw_comb$side == tolower(side_l)], grepl('WW', label)), aes(x = profdist, y = +Inf, label = "WW"), angle = 90, hjust = 1, size = 3))
+  } else{
+    return(rn)
+  }
 }
 
 rnplot_l <- lapply(unique(ss_l_rn$month), rnplot, ss_l_rn, "Left")
 rnplot_r <- lapply(unique(ss_r_rn$month), rnplot, ss_r_rn, "Right")
 
 condplot <- function(m, side, side_l){
-  ggplot(side[(!is.na(side$anom_dec)) & (side$month == m),]) + geom_point(aes(x=profdist, y = surfcond, color = anom_sec), size = ptsize)+ 
+  ggplot(side[(!is.na(side$anom_dec)) & (side$month == m) & (side$dist < 500),]) + geom_point(aes(x=profdist, y = surfcond, color = anom_sec), size = ptsize)+ 
     geom_point(aes(x=profdist, y = deepcond, color = anom_dec), size = ptsize)+ ylim(125,155)+
-    labs(x =  "Profile Distance (km)", y = "SpC (us/cm)", color = "") + 
+    geom_vline(data = allmax[(allmax$month == m) & (allmax$side == side_l),], aes(xintercept = profdist, linetype = "End of Day"))+
+    geom_vline(data = sw_comb[sw_comb$side == tolower(side_l)], aes(xintercept = profdist, linetype = "SW Inflow")) +
     guides(colour = guide_legend(override.aes = list(size=3))) +
-    geom_vline(data = allmax[(allmax$month == m) & (allmax$side == side_l),], aes(xintercept = profdist))+
     scale_color_manual(values = c("Deep Background" = "black", "Deep Anomaly" = "red", 
-                                  "Surface Background" = "gray", "Surface Anomaly" = "coral")) + xlim(0,117)
+                                  "Surface Background" = "gray", "Surface Anomaly" = "coral")) + 
+    scale_linetype_manual(values = c(1,2)) +
+    labs(x =  "Profile Distance (km)", y = "SpC (us/cm)", color = "", linetype = "") + 
+    xlim(0,117) #
   
 }
 
@@ -452,15 +507,16 @@ cond_r_plot <- lapply(unique(ss_r$month), condplot, ss_r, "Right")
 
 # Function for temperature plots
 tempplot <- function(m, side, side_l){
-  ggplot(side[(!is.na(side$anom_dtemp)) & (side$month == m),]) +
+  ggplot(side[(!is.na(side$anom_dtemp)) & (side$month == m) & (side$dist < 500),]) +
     geom_point(aes(x=profdist, y = surftemp, color = anom_stemp), size = ptsize) +
     geom_point(aes(x=profdist, y = deeptemp, color = anom_dtemp), size = ptsize) +
-    geom_vline(data = allmax[(allmax$month == m) & (allmax$side == side_l),], aes(xintercept = profdist))+
+    geom_vline(data = allmax[(allmax$month == m) & (allmax$side == side_l),], aes(xintercept = profdist, linetype = "End of Day"))+
+    geom_vline(data = sw_comb[sw_comb$side == tolower(side_l)], aes(xintercept = profdist, linetype = "SW Inflow")) +
     labs(x = "Profile Distance (km)", y = "Temp (C)", color = "") +
     guides(colour = guide_legend(override.aes = list(size=3))) +
     scale_color_manual(values = c("Deep Background" = "black", "Deep Anomaly" = "red", 
-                                  "Surface Background" = "gray", "Surface Anomaly" = "coral")) + xlim(0,117) +
-    scales_y[m]
+                                  "Surface Background" = "gray", "Surface Anomaly" = "coral")) + 
+    scale_linetype_manual(values = c(1,2)) + xlim(0,117) + scales_y[m] + theme(legend.position="none")
 }
 
 # Make the temperature plots
@@ -529,6 +585,7 @@ for (i in 1:length(gp)){
   
   gp[[i]]$profdist <- gp[[i]]$profdist/1000
   
+  gp[[i]] <- gp[[i]] %>% rowwise(RECORD) %>%  mutate(mean25 = mean(c(RHO_I_2, RHO_I_3, RHO_I_4, RHO_I_5)))
   # make the data frame sf 
   coordinates(gp[[i]]) <- ~x+y
   gp[[i]] <- gp[[i]] %>% st_as_sf() %>% st_set_crs(epsg3857)
@@ -555,7 +612,6 @@ lines_gp <- lapply(gp, lineplots)
 names <- c('April Left', 'April Right', 'July Left', 'July Right')
 
 for (i in 1:length(lines_gp)){
-  df[[i]] <- df[[i]] %>% rowwise(RECORD) %>%  mutate(mean25 = mean(c(RHO_I_2, RHO_I_3, RHO_I_4, RHO_I_5)))
   plot <- lines_gp[[i]] + ggtitle(names[i])
   ggsave(paste0('reslayers_', gsub(" ", "", names[i]),'.png'), plot = plot, width = 14, height = 3, units = 'in')
 }
@@ -586,7 +642,8 @@ plotres <- function(df){
   }
   res <- res + geom_rect(data = noplot, aes(xmin = xmin, xmax = profdist, ymin = DEP_TOP_1, ymax = DEP_BOT_20), fill = 'gray')+
     scale_y_reverse() + labs(y = "Depth (m)", x = "Profile Distance (km)") +
-    scale_fill_viridis_c('EC (us/cm)', option = 'turbo', trans = "log10", limits = c(scalemin, scalemax), oob = squish)
+    scale_fill_viridis_c('EC (us/cm)', option = 'turbo', trans = "log10", limits = c(scalemin, scalemax), oob = squish)+
+    xlim(0,117)
   
   return(res)
   
@@ -597,7 +654,7 @@ ecplots <- lapply(gp, plotres)
 ec_l <- ecplots[c(3,1)]
 ec_r <- ecplots[c(4,2)]
 
-# Combine the resistivity plots with the radon and conductivity data
+# Combine the resistivity plots with the radon and conductivity data for July/April
 for (i in 2:3){
   plotl <- rnplot_l[[i]]/temp_l_plot[[i]]/cond_l_plot[[i]]/ec_l[[i-1]] + plot_layout(guides = "collect", heights = c(1,1,1,2))
   plotr <- rnplot_r[[i]]/temp_r_plot[[i]]/cond_r_plot[[i]]/ec_r[[i-1]] + plot_layout(guides = "collect", heights = c(1,1,1,2))
@@ -605,15 +662,10 @@ for (i in 2:3){
   ggsave(paste0('wgeophys_r_', i, '.png'), plot = plotr, width = 12, height = 6, units = 'in')
 }
 
-
-#### Add the locations of known surface water inflows  ####
-
-# Load the times of known inflows
-inflowtimes <- readxl::read_excel('Data/surfaceinflowtimes.xlsx', col_names = c('time', 'label'))
-inflowtimes$time <- inflowtimes$time %>% as_datetime() %>% force_tz(tzone = "America/Los_Angeles")
-
-# Find the profile distance of the closest WQ point in time (using df 'ss') for each inflow
-library(data.table)
-setDT(ss)[,join_date := TIMESTAMP]
-setDT(inflowtimes)[,join_date := time]
-joined <- ss[inflowtimes, on = .(join_date), roll = "nearest"]
+# Plot February data with July resistivity then with April resistivity
+for (i in 1:2){
+  plotl <- rnplot_l[[1]]/temp_l_plot[[1]]/cond_l_plot[[1]]/ec_l[[i]] + plot_layout(guides = "collect", heights = c(1,1,1,2))
+  plotr <- rnplot_r[[1]]/temp_r_plot[[1]]/cond_r_plot[[1]]/ec_r[[i]] + plot_layout(guides = "collect", heights = c(1,1,1,2))
+  ggsave(paste0('feb_l_', i, 'res.png'), plot = plotl, width = 12, height = 6, units = 'in')
+  ggsave(paste0('feb_r_', i, 'res.png'), plot = plotr, width = 12, height = 6, units = 'in')
+}
