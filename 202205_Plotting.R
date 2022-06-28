@@ -669,3 +669,12 @@ for (i in 1:2){
   ggsave(paste0('feb_l_', i, 'res.png'), plot = plotl, width = 12, height = 6, units = 'in')
   ggsave(paste0('feb_r_', i, 'res.png'), plot = plotr, width = 12, height = 6, units = 'in')
 }
+
+# Extract start/end times
+alltimes <- rbind(select(st_drop_geometry(holedata), TIMESTAMP), select(ss, TIMESTAMP))
+weeks <- alltimes %>% group_by(month(TIMESTAMP)) %>% summarise(max = max(TIMESTAMP), min = min(TIMESTAMP))
+write.csv(weeks, file = 'ends_byweek.csv')
+days <- alltimes %>% group_by(month(TIMESTAMP), day(TIMESTAMP)) %>% summarise(min = min(TIMESTAMP))
+max <- alltimes %>% group_by(month(TIMESTAMP), day(TIMESTAMP)) %>% summarise(max = max(TIMESTAMP))
+daysminmax <- cbind(days, max[,'max'])
+write.csv(daysminmax, file = 'ends_byday.csv')
